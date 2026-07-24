@@ -17,15 +17,17 @@ export const AdminCrudView = ({
 }) => (
     <div className="analysis-layout">
         <div className="strategic-filters-panel" style={{ background: '#dbeafe', border: '3px solid #000', boxShadow: '6px 6px 0 #000' }}>
-            <h3 className="filters-panel-title">👑 PANEL GENERAL DE CONTROL DE USUARIOS Y ROLES</h3>
-            <p style={{ fontSize: '0.85rem', fontWeight: '700', marginTop: '5px', color: '#1e3a8a' }}>
+            <h3 className="filters-panel-title" style={{ color: '#000000', fontWeight: '900' }}>
+                👑 PANEL GENERAL DE CONTROL DE USUARIOS Y ROLES
+            </h3>
+            <p style={{ fontSize: '0.85rem', fontWeight: '800', marginTop: '5px', color: '#1e3a8a' }}>
                 Administra los perfiles de acceso al sistema, asigna el rol de Administrador o Usuario y configura el catálogo de Magistrados oficiales.
             </p>
         </div>
 
         <div className="crud-grid-two-columns">
-            <div className="card-tabla" style={{ padding: '0', background: '#ffffff', borderRadius: '16px' }}>
-                <div className="card-tabla-header" style={{ backgroundColor: editingUsr ? '#ea580c' : '#3b82f6', color: '#fff' }}>
+            <div className="card-tabla" style={{ padding: '0', background: '#ffffff', borderRadius: '16px', border: '3px solid #000' }}>
+                <div className="card-tabla-header" style={{ backgroundColor: editingUsr ? '#ea580c' : '#3b82f6', color: '#ffffff' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900' }}>
                         {editingUsr ? <Edit3 size={18} /> : <UserPlus size={18} />}
                         {editingUsr ? `EDITANDO: ${editingUsr}` : 'REGISTRAR NUEVO USUARIO'}
@@ -35,7 +37,7 @@ export const AdminCrudView = ({
                 <form onSubmit={handleSaveUsuario} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {!editingUsr && (
                         <div>
-                            <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px', color: '#000000' }}>
                                 CORREO INSTITUCIONAL (USERNAME)
                             </label>
                             <input
@@ -43,7 +45,7 @@ export const AdminCrudView = ({
                                 required
                                 placeholder="ejemplo@palacio.gov.co"
                                 className="nav-input"
-                                style={{ border: '2px solid #000', width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#f8fafc', fontWeight: '700' }}
+                                style={{ border: '2px solid #000', width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#ffffff', color: '#000000', fontWeight: '800' }}
                                 value={usrForm.username}
                                 onChange={e => setUsrForm({ ...usrForm, username: e.target.value })}
                             />
@@ -51,7 +53,7 @@ export const AdminCrudView = ({
                     )}
 
                     <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px', color: '#000000' }}>
                             NOMBRE COMPLETO / DESPACHO
                         </label>
                         <input
@@ -59,29 +61,39 @@ export const AdminCrudView = ({
                             required
                             placeholder="Ej: DRA. MARIA PEREZ"
                             className="nav-input"
-                            style={{ border: '2px solid #000', width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#f8fafc', fontWeight: '700' }}
+                            style={{ border: '2px solid #000', width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#ffffff', color: '#000000', fontWeight: '800' }}
                             value={usrForm.nombre}
                             onChange={e => setUsrForm({ ...usrForm, nombre: e.target.value })}
                         />
                     </div>
 
                     <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px', color: '#000000' }}>
                             ROL DE ACCESO
                         </label>
                         <select
                             className="nav-select"
-                            style={{ width: '100%', maxWidth: '100%', border: '2px solid #000', padding: '10px', borderRadius: '8px', height: 'auto', background: '#f8fafc' }}
+                            style={{
+                                width: '100%',
+                                maxWidth: '100%',
+                                border: '2px solid #000',
+                                padding: '10px',
+                                borderRadius: '8px',
+                                height: 'auto',
+                                background: '#ffffff',
+                                color: '#000000',
+                                fontWeight: '800'
+                            }}
                             value={usrForm.rol}
                             onChange={e => setUsrForm({ ...usrForm, rol: e.target.value })}
                         >
-                            <option value="usuario">👤 USUARIO (Solo Lectura y Reportes)</option>
-                            <option value="admin">👑 ADMINISTRADOR (Acceso Total)</option>
+                            <option value="usuario" style={{ color: '#000000', background: '#ffffff' }}>👤 USUARIO (Solo Lectura y Reportes)</option>
+                            <option value="admin" style={{ color: '#000000', background: '#ffffff' }}>👑 ADMINISTRADOR (Acceso Total)</option>
                         </select>
                     </div>
 
                     <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '900', display: 'block', marginBottom: '6px', color: '#000000' }}>
                             {editingUsr ? 'NUEVA CONTRASEÑA (Opcional)' : 'CONTRASEÑA DE ACCESO'}
                         </label>
                         <input
@@ -89,14 +101,14 @@ export const AdminCrudView = ({
                             required={!editingUsr}
                             placeholder="••••••••"
                             className="nav-input"
-                            style={{ border: '2px solid #000', width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#f8fafc', fontWeight: '700' }}
+                            style={{ border: '2px solid #000', width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#ffffff', color: '#000000', fontWeight: '800' }}
                             value={usrForm.password}
                             onChange={e => setUsrForm({ ...usrForm, password: e.target.value })}
                         />
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                        <button type="submit" className="btn-action" style={{ flex: 1, background: '#000000', color: '#ffffff', padding: '12px', borderRadius: '8px', fontWeight: '900', height: 'auto' }}>
+                        <button type="submit" className="btn-action" style={{ flex: 1, background: '#000000', color: '#ffffff', padding: '12px', borderRadius: '8px', fontWeight: '900', height: 'auto', cursor: 'pointer' }}>
                             <Save size={16} /> {editingUsr ? 'GUARDAR CAMBIOS' : 'CREAR USUARIO'}
                         </button>
 
@@ -105,7 +117,7 @@ export const AdminCrudView = ({
                                 type="button"
                                 onClick={() => { setEditingUsr(null); setUsrForm({ username: '', nombre: '', rol: 'usuario', password: '' }); }}
                                 className="btn-action"
-                                style={{ background: '#ef4444', color: '#ffffff', padding: '12px', borderRadius: '8px', fontWeight: '900', height: 'auto' }}
+                                style={{ background: '#ef4444', color: '#ffffff', padding: '12px', borderRadius: '8px', fontWeight: '900', height: 'auto', cursor: 'pointer' }}
                             >
                                 <X size={16} />
                             </button>
@@ -114,8 +126,8 @@ export const AdminCrudView = ({
                 </form>
             </div>
 
-            <div className="card-tabla" style={{ borderRadius: '16px' }}>
-                <div className="card-tabla-header" style={{ backgroundColor: '#0f172a' }}>
+            <div className="card-tabla" style={{ borderRadius: '16px', border: '3px solid #000', background: '#ffffff' }}>
+                <div className="card-tabla-header" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
                     <span>USUARIOS EN EL SISTEMA ({usuariosList.length})</span>
                 </div>
                 <div className="card-tabla-body">
@@ -130,9 +142,9 @@ export const AdminCrudView = ({
                         </thead>
                         <tbody>
                             {usuariosList.map((usr, i) => (
-                                <tr key={i}>
-                                    <td style={{ fontWeight: '800', fontSize: '0.75rem' }}>{usr.username}</td>
-                                    <td style={{ fontWeight: '800', fontSize: '0.75rem' }}>{usr.nombre}</td>
+                                <tr key={i} style={{ color: '#000000' }}>
+                                    <td style={{ fontWeight: '800', fontSize: '0.75rem', color: '#000000' }}>{usr.username}</td>
+                                    <td style={{ fontWeight: '800', fontSize: '0.75rem', color: '#000000' }}>{usr.nombre}</td>
                                     <td className="txt-center">
                                         <span className={`badge-semaforo ${usr.rol === 'admin' ? 'badge-rojo' : 'badge-verde'}`}>
                                             {usr.rol.toUpperCase()}
@@ -156,8 +168,8 @@ export const AdminCrudView = ({
             </div>
         </div>
 
-        <div className="card-tabla" style={{ marginTop: '10px', borderRadius: '16px' }}>
-            <div className="card-tabla-header" style={{ backgroundColor: '#1e293b' }}>
+        <div className="card-tabla" style={{ marginTop: '10px', borderRadius: '16px', border: '3px solid #000', background: '#ffffff' }}>
+            <div className="card-tabla-header" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>
                 <span>📜 CATÁLOGO OFICIAL DE MAGISTRADOS Y DESPACHOS</span>
             </div>
             <div className="card-tabla-body" style={{ padding: '24px' }}>
@@ -166,11 +178,11 @@ export const AdminCrudView = ({
                         type="text"
                         placeholder="Nombre del Magistrado (Ej: DR. MAURICIO JAVIER ROJAS)..."
                         className="nav-input"
-                        style={{ border: '2px solid #000', flex: 1, padding: '12px 14px', borderRadius: '8px', background: '#f8fafc', fontWeight: '700', fontSize: '0.85rem' }}
+                        style={{ border: '2px solid #000', flex: 1, padding: '12px 14px', borderRadius: '8px', background: '#ffffff', color: '#000000', fontWeight: '800', fontSize: '0.85rem' }}
                         value={nuevoMagistradoInput}
                         onChange={e => setNuevoMagistradoInput(e.target.value)}
                     />
-                    <button onClick={handleAddMagistrado} className="btn-action" style={{ background: '#22c55e', color: '#fff', padding: '0 20px', fontWeight: '900', height: 'auto' }}>
+                    <button onClick={handleAddMagistrado} className="btn-action" style={{ background: '#22c55e', color: '#ffffff', padding: '0 20px', fontWeight: '900', height: 'auto', cursor: 'pointer', border: '2px solid #000', borderRadius: '8px' }}>
                         <PlusCircle size={18} /> AGREGAR
                     </button>
                 </div>
@@ -186,6 +198,7 @@ export const AdminCrudView = ({
                                 padding: '10px 16px',
                                 fontWeight: '900',
                                 fontSize: '0.8rem',
+                                color: '#000000',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '12px',

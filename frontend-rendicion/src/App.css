@@ -1,4 +1,4 @@
-/* App.css - Sistema Integrado PRC Judicial */
+/* App.css - Sistema Integrado PRC Judicial (Fix Global de Colores y Modo Oscuro) */
 
 :root {
     --primary: #3b82f6;
@@ -27,10 +27,43 @@
 body {
     font-family: 'Public Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
     background-color: var(--bg);
-    color: var(--main-black);
+    color: var(--main-black) !important;
 }
 
-/* 1. BARRA DE NAVEGACIÓN SUPERIOR */
+/* ==========================================================================
+   RESET GLOBAL Y REGLAS ANTI-NATIVE DARK MODE / AUTOFILL
+   ========================================================================== */
+
+/* Forzar color de texto e higiene en TODOS los inputs, select y textareas */
+input,
+select,
+textarea,
+button {
+    color: #000000 !important;
+    font-family: inherit;
+}
+
+/* Evitar que Autofill de Chrome / Edge cambie el fondo a amarillo/gris oscuro con texto invisible */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+/* Placeholders visibles en todos los navegadores */
+::placeholder,
+::-webkit-input-placeholder,
+::-moz-placeholder,
+:-ms-input-placeholder {
+    color: #64748b !important;
+    opacity: 1 !important;
+}
+
+/* ==========================================================================
+   1. BARRA DE NAVEGACIÓN SUPERIOR
+   ========================================================================== */
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -52,6 +85,7 @@ body {
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    color: var(--main-black) !important;
 }
 
 .header-actions {
@@ -87,13 +121,13 @@ body {
     outline: none;
     background: transparent;
     width: 105px;
-    color: var(--main-black);
+    color: var(--main-black) !important;
 }
 
 .to-text {
     font-weight: 900;
     font-size: 0.7rem;
-    color: #64748b;
+    color: #64748b !important;
 }
 
 .nav-select {
@@ -103,11 +137,18 @@ body {
     font-family: inherit;
     font-weight: 900;
     font-size: 0.8rem;
-    background-color: var(--white);
+    background-color: var(--white) !important;
+    color: var(--main-black) !important;
     cursor: pointer;
     box-shadow: 3px 3px 0 var(--main-black);
     outline: none;
     max-width: 200px;
+}
+
+.nav-select option {
+    background-color: var(--white) !important;
+    color: var(--main-black) !important;
+    font-weight: 700;
 }
 
 .action-buttons-wrapper {
@@ -132,7 +173,7 @@ body {
     box-shadow: 3px 3px 0 var(--main-black);
     transition: transform 0.1s, box-shadow 0.1s;
     background-color: var(--white);
-    color: var(--main-black);
+    color: var(--main-black) !important;
 }
 
 .btn-action:hover {
@@ -170,7 +211,47 @@ body {
     color: #ffffff !important;
 }
 
-/* 2. TARJETAS KPI COMPACTAS Y FLOTANTES */
+/* ==========================================================================
+   2. PESTAÑAS (TABS DE NAVEGACIÓN)
+   ========================================================================== */
+.tabs-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.tab {
+    padding: 12px 24px;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 0.95rem;
+    background-color: var(--white) !important;
+    color: var(--main-black) !important;
+    border: var(--border-thick) solid var(--main-black);
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--main-black);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tab:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--main-black);
+}
+
+.tab.active {
+    background-color: var(--main-black) !important;
+    color: var(--white) !important;
+    box-shadow: none;
+    transform: none;
+}
+
+/* ==========================================================================
+   3. TARJETAS KPI
+   ========================================================================== */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -217,7 +298,7 @@ body {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    color: #64748b;
+    color: #64748b !important;
     margin: 0;
 }
 
@@ -225,20 +306,20 @@ body {
     font-size: 1.5rem;
     font-weight: 900;
     letter-spacing: -1px;
-    color: #0f172a;
+    color: #0f172a !important;
     line-height: 1.1;
     margin: 2px 0 0 0;
 }
 
 .kpi-value.red-text {
-    color: #e11d48;
+    color: #e11d48 !important;
 }
 
 .kpi-footer-sub {
     display: block;
     font-size: 0.65rem;
     font-weight: 700;
-    color: #e11d48;
+    color: #e11d48 !important;
     margin-top: 6px;
 }
 
@@ -262,53 +343,13 @@ body {
     border-left: 4px solid #ef4444;
 }
 
-/* 3. LAYOUT CRUD DOS COLUMNAS */
-.crud-grid-two-columns {
-    display: grid;
-    grid-template-columns: 1fr 1.2fr;
-    gap: 25px;
-    align-items: start;
-}
-
-/* 4. CONTENIDO PRINCIPAL */
+/* ==========================================================================
+   4. LAYOUTS Y SECCIONES PRINCIPALES
+   ========================================================================== */
 .content {
     padding: 30px;
     max-width: 1400px;
     margin: 0 auto;
-}
-
-.tabs-container {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 25px;
-}
-
-.tab {
-    padding: 12px 24px;
-    font-family: inherit;
-    font-weight: 900;
-    font-size: 0.95rem;
-    background-color: var(--white);
-    border: var(--border-thick) solid var(--main-black);
-    border-radius: 12px;
-    cursor: pointer;
-    box-shadow: 4px 4px 0 var(--main-black);
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.tab:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0 var(--main-black);
-}
-
-.tab.active {
-    background-color: var(--main-black);
-    color: var(--white);
-    box-shadow: none;
-    transform: none;
 }
 
 .gestion-layout,
@@ -316,6 +357,13 @@ body {
     display: flex;
     flex-direction: column;
     gap: 30px;
+}
+
+.crud-grid-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 25px;
+    align-items: start;
 }
 
 .dashboard-section {
@@ -333,6 +381,7 @@ body {
     background-color: #fff8f6;
 }
 
+/* Corrección para los títulos de sección (FLUJO DE INGRESOS, FLUJO DE EGRESOS) */
 .section-title {
     font-size: 1.4rem;
     font-weight: 900;
@@ -342,8 +391,20 @@ body {
     border-bottom: 3px solid var(--main-black);
     padding-bottom: 8px;
     display: inline-block;
+    color: #000000 !important;
 }
 
+.sub-title-header {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: #000000 !important;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+/* ==========================================================================
+   5. GRÁFICAS Y TABLAS
+   ========================================================================== */
 .charts-double-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -366,6 +427,7 @@ body {
     text-align: center;
     border-bottom: 2px solid #e2e8f0;
     padding-bottom: 8px;
+    color: #000000 !important;
 }
 
 .tables-double-grid {
@@ -383,7 +445,7 @@ body {
 }
 
 .card-tabla-header {
-    color: var(--white);
+    color: var(--white) !important;
     font-weight: 900;
     padding: 12px 20px;
     font-size: 0.9rem;
@@ -405,6 +467,7 @@ table {
 
 th {
     background-color: #f1f5f9;
+    color: #000000 !important;
     font-weight: 900;
     font-size: 0.7rem;
     padding: 10px 15px;
@@ -419,6 +482,7 @@ td {
     padding: 10px 15px;
     font-size: 0.8rem;
     border-bottom: 1px solid #e2e8f0;
+    color: #000000 !important;
 }
 
 tr:hover td {
@@ -434,14 +498,16 @@ tr:hover td {
 }
 
 .col-ing {
-    color: var(--primary);
+    color: var(--primary) !important;
 }
 
 .col-egr {
-    color: var(--danger);
+    color: var(--danger) !important;
 }
 
-/* 5. COMPARATIVAS */
+/* ==========================================================================
+   6. MÓDULO DE COMPARATIVAS
+   ========================================================================== */
 .comp-header {
     display: flex;
     justify-content: space-between;
@@ -460,7 +526,8 @@ tr:hover td {
     padding: 0.6rem 1.2rem;
     border: var(--border-thick) solid var(--main-black);
     border-radius: 8px;
-    background: var(--white);
+    background: var(--white) !important;
+    color: #000000 !important;
     font-weight: 900;
     cursor: pointer;
     box-shadow: 3px 3px 0 var(--main-black);
@@ -468,8 +535,8 @@ tr:hover td {
 }
 
 .mode-btn.active {
-    background: var(--primary);
-    color: var(--white);
+    background: var(--primary) !important;
+    color: var(--white) !important;
     box-shadow: none;
     transform: translate(2px, 2px);
 }
@@ -504,12 +571,13 @@ tr:hover td {
     border-radius: 6px;
     font-weight: 800;
     font-size: 0.85rem;
-    background: var(--white);
+    background: var(--white) !important;
+    color: #000000 !important;
 }
 
 .vs-badge {
     background: var(--main-black);
-    color: var(--white);
+    color: var(--white) !important;
     font-weight: 900;
     padding: 0.6rem 0.9rem;
     border-radius: 50%;
@@ -529,6 +597,7 @@ tr:hover td {
     border: var(--border-thick) solid var(--main-black);
     border-radius: 12px;
     box-shadow: var(--shadow-neo);
+    color: #000000 !important;
 }
 
 .comp-values {
@@ -538,6 +607,7 @@ tr:hover td {
     font-size: 1.3rem;
     font-weight: 900;
     margin: 0.75rem 0;
+    color: #000000 !important;
 }
 
 .badge {
@@ -552,16 +622,194 @@ tr:hover td {
 }
 
 .badge.pos {
-    background: #dcfce7;
-    color: #166534;
+    background: #dcfce7 !important;
+    color: #166534 !important;
 }
 
 .badge.neg {
-    background: #fee2e2;
-    color: #991b1b;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
 }
 
-/* 6. UTILITIES */
+/* ==========================================================================
+   7. FORMULARIO DE LOGIN (PANTALLA DE ACCESO)
+   ========================================================================== */
+.login-container {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background-color: #f1f5f9;
+}
+
+.login-card {
+    background-color: #ffffff !important;
+    border: var(--border-thick) solid var(--main-black);
+    border-radius: 16px;
+    padding: 35px 30px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-neo-lg);
+}
+
+.login-card h2 {
+    color: #000000 !important;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-card label {
+    color: #000000 !important;
+    font-weight: 900;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Caja del Input */
+.login-field-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #ffffff !important;
+    border: 2px solid #000000;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+}
+
+/* Input interno */
+.login-field-box input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    width: 100%;
+    font-weight: 800;
+    color: #000000 !important;
+    font-size: 0.95rem;
+}
+
+/* Fix para AUTOFILL / Autocompletado de Chrome, Edge y Safari */
+.login-field-box input:-webkit-autofill,
+.login-field-box input:-webkit-autofill:hover,
+.login-field-box input:-webkit-autofill:focus,
+.login-field-box input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-text-fill-color: #000000 !important;
+    caret-color: #000000 !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.login-field-box svg {
+    color: #000000 !important;
+    flex-shrink: 0;
+}
+
+/* Botón Ingresar */
+.btn-login-submit {
+    width: 100%;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    /* Texto blanco forzado */
+    border: 2px solid #000000;
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 #3b82f6;
+    /* Sombra azul como tenías originalmente */
+    transition: transform 0.1s, box-shadow 0.1s;
+    margin-top: 10px;
+}
+
+.btn-login-submit:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 #3b82f6;
+}
+
+.btn-login-submit:active {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 #3b82f6;
+}
+
+/* ==========================================================================
+   8. BUSCADOR Y FILTROS ESTRATÉGICOS
+   ========================================================================== */
+.strategic-filters-panel {
+    background-color: #fef08a !important;
+    border: var(--border-thick) solid var(--main-black);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 6px 6px 0 var(--main-black);
+    color: #000000 !important;
+}
+
+.filters-panel-title {
+    font-size: 0.95rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--main-black);
+    padding-bottom: 5px;
+    display: inline-block;
+    color: #000000 !important;
+}
+
+.filters-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.filter-field-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-field-box label {
+    font-size: 0.75rem;
+    font-weight: 900;
+    color: var(--main-black) !important;
+    letter-spacing: 0.5px;
+}
+
+.input-search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--white) !important;
+    border: 2px solid var(--main-black);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.input-search-wrapper input {
+    border: none;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    outline: none;
+    width: 100%;
+    background: transparent !important;
+    color: #000000 !important;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 25px;
+}
+
+/* ==========================================================================
+   9. UTILITIES Y OTROS COMPONENTES
+   ========================================================================== */
 .badge-semaforo {
     display: inline-block;
     padding: 5px 10px;
@@ -574,26 +822,18 @@ tr:hover td {
 }
 
 .badge-verde {
-    background-color: #22c55e;
-    color: #ffffff;
+    background-color: #22c55e !important;
+    color: #ffffff !important;
 }
 
 .badge-amarillo {
-    background-color: #facc15;
-    color: #000000;
+    background-color: #facc15 !important;
+    color: #000000 !important;
 }
 
 .badge-rojo {
-    background-color: #ef4444;
-    color: #ffffff;
-}
-
-.login-container {
-    display: flex;
-    min-height: 100vh;
-    align-items: center;
-    justify-content: center;
-    background-color: #f1f5f9;
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
 }
 
 .loading-overlay {
@@ -623,69 +863,7 @@ tr:hover td {
     }
 }
 
-.strategic-filters-panel {
-    background-color: #fef08a;
-    border: var(--border-thick) solid var(--main-black);
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 6px 6px 0 var(--main-black);
-}
-
-.filters-panel-title {
-    font-size: 0.95rem;
-    font-weight: 900;
-    letter-spacing: -0.5px;
-    margin-bottom: 15px;
-    border-bottom: 2px solid var(--main-black);
-    padding-bottom: 5px;
-    display: inline-block;
-}
-
-.filters-grid-layout {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.filter-field-box {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.filter-field-box label {
-    font-size: 0.75rem;
-    font-weight: 900;
-    color: var(--main-black);
-    letter-spacing: 0.5px;
-}
-
-.input-search-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background-color: var(--white);
-    border: 2px solid var(--main-black);
-    border-radius: 8px;
-    padding: 8px 12px;
-}
-
-.input-search-wrapper input {
-    border: none;
-    font-family: inherit;
-    font-size: 0.85rem;
-    font-weight: 800;
-    outline: none;
-    width: 100%;
-    background: transparent;
-}
-
-.analysis-grid {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 25px;
-}
-
+/* RESPONSIVE DESIGN */
 @media (max-width: 1024px) {
 
     .tables-double-grid,
