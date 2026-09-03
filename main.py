@@ -1,29 +1,35 @@
 from fastapi import FastAPI, UploadFile, File, Query, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import List, Optional
 from sqlmodel import Session, select
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 import pandas as pd
 import io
 import unicodedata
 import json
 
 # ─── IMPORTAR CONFIGURACIÓN CENTRALIZADA ──────────────────────────────────────
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, CORS_ORIGINS
+from config import CORS_ORIGINS
 from database import get_session
 from models import Usuario as UsuarioDB, CargaExcel, DatoProcesal, MapeoDinamico
-
-# ─── CONFIGURACIÓN DE SEGURIDAD CRYPTO / JWT ──────────────────────────────────
-# SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES se importan de config.py
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+from auth import (
+    autenticar_usuario,
+    crear_token_acceso,
+    hash_password,
+    obtener_usuario_actual,
+    verificar_admin,
+)
+from schemas import (
+    ListaMagistradosDTO,
+    NuevoMapeoRequest,
+    Token,
+    Usuario,
+    UsuarioCreateDTO,
+    UsuarioUpdateDTO,
+)
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -36,97 +42,11 @@ app.add_middleware(
 )
 
 
-# ─── MODELOS Y DTOs ───────────────────────────────────────────────────────────
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class Usuario(BaseModel):
-    username: str
-    nombre: str
-    rol: str
-
-
-class UsuarioCreateDTO(BaseModel):
-    username: str
-    nombre: str
-    rol: str
-    password: str
-
-
-class UsuarioUpdateDTO(BaseModel):
-    nombre: Optional[str] = None
-    rol: Optional[str] = None
-    password: Optional[str] = None
-
-
-class NuevoMapeoRequest(BaseModel):
-    texto_origen: str
-    categoria_destino: str
-
-
-class ListaMagistradosDTO(BaseModel):
-    magistrados: List[str]
-
-
 MAGISTRADOS_OFICIALES = [
     "DR. MAURICIO JAVIER ROJAS",
     "DRA. MARIA ELENA GOMEZ",
     "DR. CARLOS ALBERTO PEREZ",
 ]
-
-
-def verificar_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def crear_token_acceso(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-async def obtener_usuario_actual(
-    token: str = Depends(oauth2_scheme),
-    session: Session = Depends(get_session),
-):
-    credenciales_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="No se pudieron validar las credenciales de acceso.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-
-        if username is None:
-            raise credenciales_exception
-
-    except JWTError:
-        raise credenciales_exception
-
-    usuario = session.exec(select(UsuarioDB).where(UsuarioDB.email == username)).first()
-
-    if usuario is None:
-        raise credenciales_exception
-
-    return Usuario(
-        username=usuario.email,
-        nombre=usuario.nombre,
-        rol=usuario.rol,
-    )
-
-
-def verificar_admin(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    if usuario_actual.rol != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso exclusivo para Administradores del sistema.",
-        )
-    return usuario_actual
 
 
 def normalizar(texto):
@@ -313,11 +233,9 @@ async def login_por_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
 ):
-    usuario = session.exec(
-        select(UsuarioDB).where(UsuarioDB.email == form_data.username)
-    ).first()
+    usuario = autenticar_usuario(session, form_data.username, form_data.password)
 
-    if not usuario or not verificar_password(form_data.password, usuario.password_hash):
+    if not usuario:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo o contraseña incorrectos.",
@@ -526,7 +444,7 @@ def crear_usuario(
     nuevo_usuario = UsuarioDB(
         nombre=dto.nombre.strip().upper(),
         email=dto.username.strip().lower(),
-        password_hash=pwd_context.hash(dto.password),
+        password_hash=hash_password(dto.password),
         rol=dto.rol.strip().lower(),
     )
 
@@ -564,7 +482,7 @@ def editar_usuario(
         usuario.rol = dto.rol.strip().lower()
 
     if dto.password is not None and dto.password.strip():
-        usuario.password_hash = pwd_context.hash(dto.password)
+        usuario.password_hash = hash_password(dto.password)
 
     session.add(usuario)
     session.commit()

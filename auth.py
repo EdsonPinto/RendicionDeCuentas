@@ -6,8 +6,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlmodel import Session, select
 from database import get_session
-from models import Usuario
+from models import Usuario as UsuarioDB
 from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from schemas import UsuarioAutenticado
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -27,7 +28,7 @@ def crear_token_acceso(data: dict, expires_delta: Optional[timedelta] = None):
 async def obtener_usuario_actual(
     token: str = Depends(oauth2_scheme), 
     session: Session = Depends(get_session)
-) -> Usuario:
+) -> UsuarioAutenticado:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudieron validar las credenciales de acceso.",
@@ -41,7 +42,30 @@ async def obtener_usuario_actual(
     except JWTError:
         raise credentials_exception
         
-    usuario = session.exec(select(Usuario).where(Usuario.email == email)).first()
+    usuario = session.exec(select(UsuarioDB).where(UsuarioDB.email == email)).first()
     if usuario is None:
         raise credentials_exception
+    return UsuarioAutenticado(
+        id=usuario.id,
+        username=usuario.email,
+        nombre=usuario.nombre,
+        rol=usuario.rol,
+    )
+
+def verificar_admin(usuario_actual: UsuarioAutenticado = Depends(obtener_usuario_actual)):
+    if usuario_actual.rol != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso exclusivo para Administradores del sistema.",
+        )
+    return usuario_actual
+
+def autenticar_usuario(session: Session, email: str, password: str):
+    usuario = session.exec(
+        select(UsuarioDB).where(UsuarioDB.email == email)
+    ).first()
+
+    if not usuario or not verificar_password(password, usuario.password_hash):
+        return None
+
     return usuario
