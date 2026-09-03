@@ -1,6 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Query, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -14,8 +13,6 @@ from config import CORS_ORIGINS
 from database import get_session
 from models import Usuario as UsuarioDB, CargaExcel, DatoProcesal, MapeoDinamico
 from auth import (
-    autenticar_usuario,
-    crear_token_acceso,
     hash_password,
     obtener_usuario_actual,
     verificar_admin,
@@ -49,6 +46,7 @@ from services.estadisticas_service import (
 from services.comparativa_service import obtener_comparativa as obtener_comparativa_service
 from services.cuello_botella_service import obtener_cuellos_botella as obtener_cuellos_botella_service
 from services.export_service import generar_excel_exportacion
+from routers.auth_router import router as auth_router
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -59,6 +57,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 
 MAGISTRADOS_OFICIALES = [
@@ -72,30 +72,6 @@ MAPEO_DINAMICO_UI = {}
 
 db_temporal = None
 meta = {}
-
-@app.post("/token", response_model=Token)
-async def login_por_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    session: Session = Depends(get_session),
-):
-    usuario = autenticar_usuario(session, form_data.username, form_data.password)
-
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Correo o contraseña incorrectos.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    access_token = crear_token_acceso(data={"sub": usuario.email})
-
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@app.get("/api/me", response_model=Usuario)
-def obtener_perfil_actual(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    return usuario_actual
-
 
 @app.post("/api/logout")
 def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
