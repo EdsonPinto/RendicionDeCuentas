@@ -1,11 +1,9 @@
-import os
-from sqlmodel import create_engine, Session, SQLModel
-from dotenv import load_dotenv
-
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+from sqlmodel import create_engine, Session, SQLModel, select
+from config import DATABASE_URL
+from passlib.context import CryptContext
 
 engine = create_engine(DATABASE_URL, echo=False)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_db_and_tables():
     from models import Usuario, CargaExcel, DatoProcesal
@@ -13,9 +11,16 @@ def create_db_and_tables():
     
     # Crear usuario admin por defecto si no existe
     with Session(engine) as session:
-        usuario = session.get(Usuario, 1)
+        usuario = session.exec(
+            select(Usuario).where(Usuario.email == "admin@palacio.gov.co")
+        ).first()
         if not usuario:
-            nuevo_admin = Usuario(id=1, nombre="Admin", email="admin@sistema.com", password_hash="admin123", rol="admin")
+            nuevo_admin = Usuario(
+                nombre="ADMINISTRADOR SISTEMA",
+                email="admin@palacio.gov.co",
+                password_hash=pwd_context.hash("admin123"),
+                rol="admin"
+            )
             session.add(nuevo_admin)
             session.commit()
 

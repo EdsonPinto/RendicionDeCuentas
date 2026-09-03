@@ -7,13 +7,10 @@ from passlib.context import CryptContext
 from sqlmodel import Session, select
 from database import get_session
 from models import Usuario
+from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-SECRET_KEY = "MI_SUPER_LLAVE_SECRETA_PARA_RENDICION_DE_CUENTAS"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 horas de sesión activa
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -23,7 +20,7 @@ def verificar_password(plain_password: str, hashed_password: str) -> bool:
 
 def crear_token_acceso(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta if expires_delta else timedelta(minutes=15))
+    expire = datetime.utcnow() + (expires_delta if expires_delta else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

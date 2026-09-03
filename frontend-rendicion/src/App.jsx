@@ -9,6 +9,7 @@ import { GestionView } from './components/GestionView';
 import { AnalisisView } from './components/AnalisisView';
 import { ComparativaView } from './components/ComparativaView';
 import { AdminCrudView } from './components/AdminCrudView';
+import { CuelloBotellaView } from './components/CuelloBotellaView'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -552,7 +553,7 @@ function App() {
             value={view}
             onChange={(e) => { setView(e.target.value); setSubViewMode('todos'); setLimitVigentes(50); }}
             disabled={isMagistradoCompActive}
-            style={{ 
+            style={{
               cursor: isMagistradoCompActive ? 'not-allowed' : 'pointer',
               opacity: isMagistradoCompActive ? 0.4 : 1,
               backgroundColor: isMagistradoCompActive ? '#f1f5f9' : '#ffffff'
@@ -607,6 +608,12 @@ function App() {
           <button className={activeTab === 'analisis' ? 'tab active' : 'tab'} onClick={() => setActiveTab('analisis')}>ANÁLISIS ESTRATÉGICO</button>
           <button className={activeTab === 'comparativa' ? 'tab active' : 'tab'} onClick={() => setActiveTab('comparativa')}>
             <Layers size={16} style={{ display: 'inline', marginRight: '6px' }} /> ⚖️ COMPARATIVAS
+          </button>
+          <button
+            className={activeTab === 'cuello_botella' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('cuello_botella')}
+          >
+            🚨 CUELLO DE BOTELLA
           </button>
         </div>
 
@@ -673,6 +680,11 @@ function App() {
 
         {cur && activeTab === 'gestion' && <GestionView cur={cur} />}
 
+        {activeTab === 'cuello_botella' && (
+          <CuelloBotellaView token={token} />
+        )}
+
+
         {cur && activeTab === 'analisis' && (
           <AnalisisView
             filterSinSalidaOnly={filterSinSalidaOnly}
@@ -689,13 +701,17 @@ function App() {
           />
         )}
 
-        {!cur && !loading && activeTab !== 'admin_crud' && activeTab !== 'comparativa' && (
-          <div className="welcome-screen">
-            <Database size={100} color="#cbd5e1" />
-            <h2>Esperando Base de Datos</h2>
-            <p style={{ color: '#64748b', marginTop: '10px' }}>Carga un archivo Excel desde el botón "CARGAR" para activar el análisis procesal</p>
-          </div>
-        )}
+        {!cur &&
+          !loading &&
+          activeTab !== 'admin_crud' &&
+          activeTab !== 'comparativa' &&
+          activeTab !== 'cuello_botella' && (
+            <div className="welcome-screen">
+              <Database size={100} color="#cbd5e1" />
+              <h2>Esperando Base de Datos</h2>
+              <p style={{ color: '#64748b', marginTop: '10px' }}>Carga un archivo Excel desde el botón "CARGAR" para activar el análisis procesal</p>
+            </div>
+          )}
       </main>
     </div>
   );
