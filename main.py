@@ -47,6 +47,8 @@ from services.estadisticas_service import (
     obtener_estadisticas as obtener_estadisticas_service,
 )
 from services.comparativa_service import obtener_comparativa as obtener_comparativa_service
+from services.cuello_botella_service import obtener_cuellos_botella as obtener_cuellos_botella_service
+from services.export_service import generar_excel_exportacion
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -370,325 +372,12 @@ def obtener_cuellos_botella(
             detail="No se encontró la columna de ponente.",
         )
 
-    # =========================================================
-    # 1. PROCESOS VIGENTES
-    # =========================================================
-
-    vig_raw = df[col_vigente].astype(str).str.strip().str.upper()
-
-    es_vigente = vig_raw.isin(["SI", "VIGENTE", "ACTIVO"])
-
-    df_vigentes = df[es_vigente].copy()
-
-    # =========================================================
-    # 2. FECHA DE ENTRADA Y DÍAS DE ANTIGÜEDAD
-    # =========================================================
-
-    df_vigentes["_fecha_entrada_cb"] = pd.to_datetime(
-        df_vigentes[col_ent],
-        errors="coerce",
+    return obtener_cuellos_botella_service(
+        df,
+        meta_db,
+        umbral_atencion,
+        umbral_critico,
     )
-
-    hoy = pd.Timestamp.now().normalize()
-
-    df_vigentes["_dias_cb"] = (hoy - df_vigentes["_fecha_entrada_cb"]).dt.days
-
-    df_vigentes = df_vigentes[df_vigentes["_dias_cb"].notna()].copy()
-
-    df_vigentes["_dias_cb"] = df_vigentes["_dias_cb"].astype(int)
-
-    # =========================================================
-    # 3. CLASIFICACIÓN
-    # =========================================================
-
-    def clasificar_nivel(dias):
-        if dias >= umbral_critico:
-            return "critico"
-
-        if dias >= umbral_atencion:
-            return "atencion"
-
-        return "normal"
-
-    df_vigentes["_nivel_cb"] = df_vigentes["_dias_cb"].apply(clasificar_nivel)
-
-    # =========================================================
-    # 4. NORMALIZAR PONENTE
-    # =========================================================
-
-    df_vigentes["_ponente_cb"] = (
-        df_vigentes[col_ponente]
-        .astype(str)
-        .str.replace(
-            r"\s*\*?\s*cambio\s+ponente",
-            "",
-            case=False,
-            regex=True,
-        )
-        .str.strip()
-    )
-
-    # =========================================================
-    # 5. RESUMEN GENERAL
-    # =========================================================
-
-    total_vigentes = len(df_vigentes)
-
-    total_normales = int((df_vigentes["_nivel_cb"] == "normal").sum())
-
-    total_atencion = int((df_vigentes["_nivel_cb"] == "atencion").sum())
-
-    total_criticos = int((df_vigentes["_nivel_cb"] == "critico").sum())
-
-    promedio_dias = (
-        round(
-            float(df_vigentes["_dias_cb"].mean()),
-            1,
-        )
-        if total_vigentes
-        else 0
-    )
-
-    max_dias = int(df_vigentes["_dias_cb"].max()) if total_vigentes else 0
-
-    # =========================================================
-    # 6. RANGO DE ANTIGÜEDAD
-    # =========================================================
-
-    rangos = [
-        ("0-179", 0, 179),
-        ("180-364", 180, 364),
-        ("365-449", 365, 449),
-        ("450-539", 450, 539),
-        ("540-629", 540, 629),
-        ("630+", 630, None),
-    ]
-
-    antiguedad = []
-
-    for nombre, minimo, maximo in rangos:
-
-        if maximo is None:
-            mask = df_vigentes["_dias_cb"] >= minimo
-        else:
-            mask = (df_vigentes["_dias_cb"] >= minimo) & (
-                df_vigentes["_dias_cb"] <= maximo
-            )
-
-        cantidad = int(mask.sum())
-
-        antiguedad.append(
-            {
-                "rango": nombre,
-                "desde_dias": minimo,
-                "hasta_dias": maximo,
-                "cantidad": cantidad,
-            }
-        )
-
-    # =========================================================
-    # 7. CONCENTRACIÓN POR PONENTE
-    # =========================================================
-
-    ranking_ponentes = []
-
-    for ponente, grupo in df_vigentes.groupby("_ponente_cb"):
-
-        total = len(grupo)
-
-        criticos = int((grupo["_nivel_cb"] == "critico").sum())
-
-        atencion = int((grupo["_nivel_cb"] == "atencion").sum())
-
-        promedio = round(
-            float(grupo["_dias_cb"].mean()),
-            1,
-        )
-
-        maximo = int(grupo["_dias_cb"].max())
-
-        porcentaje_critico = (
-            round(
-                criticos / total * 100,
-                2,
-            )
-            if total
-            else 0
-        )
-
-        ranking_ponentes.append(
-            {
-                "ponente": str(ponente),
-                "procesos_vigentes": total,
-                "criticos": criticos,
-                "atencion": atencion,
-                "porcentaje_critico": porcentaje_critico,
-                "promedio_dias": promedio,
-                "max_dias": maximo,
-            }
-        )
-
-    ranking_ponentes.sort(
-        key=lambda x: (
-            x["criticos"],
-            x["porcentaje_critico"],
-            x["promedio_dias"],
-        ),
-        reverse=True,
-    )
-
-    # =========================================================
-    # 8. CONCENTRACIÓN POR CATEGORÍA
-    # =========================================================
-
-    por_categoria = []
-
-    if "_categoria" in df_vigentes.columns:
-
-        for categoria, grupo in df_vigentes.groupby("_categoria"):
-
-            total = len(grupo)
-
-            criticos = int((grupo["_nivel_cb"] == "critico").sum())
-
-            atencion = int((grupo["_nivel_cb"] == "atencion").sum())
-
-            por_categoria.append(
-                {
-                    "categoria": str(categoria),
-                    "procesos_vigentes": total,
-                    "criticos": criticos,
-                    "atencion": atencion,
-                    "porcentaje_critico": (
-                        round(
-                            criticos / total * 100,
-                            2,
-                        )
-                        if total
-                        else 0
-                    ),
-                }
-            )
-
-    por_categoria.sort(
-        key=lambda x: x["criticos"],
-        reverse=True,
-    )
-
-    # =========================================================
-    # 9. CONCENTRACIÓN POR MEDIO
-    # =========================================================
-
-    por_medio = []
-
-    if col_medio:
-
-        for medio, grupo in df_vigentes.groupby(col_medio):
-
-            total = len(grupo)
-
-            criticos = int((grupo["_nivel_cb"] == "critico").sum())
-
-            atencion = int((grupo["_nivel_cb"] == "atencion").sum())
-
-            por_medio.append(
-                {
-                    "medio": str(medio),
-                    "procesos_vigentes": total,
-                    "criticos": criticos,
-                    "atencion": atencion,
-                    "porcentaje_critico": (
-                        round(
-                            criticos / total * 100,
-                            2,
-                        )
-                        if total
-                        else 0
-                    ),
-                }
-            )
-
-    por_medio.sort(
-        key=lambda x: x["criticos"],
-        reverse=True,
-    )
-
-    # =========================================================
-    # 10. PROCESOS CRÍTICOS
-    # =========================================================
-
-    df_criticos = df_vigentes[df_vigentes["_nivel_cb"] == "critico"].copy()
-
-    df_criticos = df_criticos.sort_values(
-        "_dias_cb",
-        ascending=False,
-    )
-
-    procesos_criticos = []
-
-    for _, fila in df_criticos.iterrows():
-
-        radicado = str(fila[col_rad]) if col_rad and pd.notna(fila[col_rad]) else "S.D."
-
-        ponente_original = (
-            str(fila[col_ponente]) if pd.notna(fila[col_ponente]) else "S.D."
-        )
-
-        ponente = str(fila["_ponente_cb"]) if pd.notna(fila["_ponente_cb"]) else "S.D."
-
-        medio = (
-            str(fila[col_medio]) if col_medio and pd.notna(fila[col_medio]) else "S.D."
-        )
-
-        categoria = (
-            str(fila["_categoria"])
-            if "_categoria" in fila.index and pd.notna(fila["_categoria"])
-            else "Sin categoría"
-        )
-
-        fecha_entrada = (
-            fila["_fecha_entrada_cb"].strftime("%Y-%m-%d")
-            if pd.notna(fila["_fecha_entrada_cb"])
-            else None
-        )
-
-        procesos_criticos.append(
-            {
-                "radicado": radicado,
-                "ponente": ponente,
-                "ponente_original": ponente_original,
-                "medio": medio,
-                "categoria": categoria,
-                "fecha_entrada": fecha_entrada,
-                "dias": int(fila["_dias_cb"]),
-                "nivel": "critico",
-            }
-        )
-
-    # =========================================================
-    # 11. RESPUESTA
-    # =========================================================
-
-    return {
-        "umbrales": {
-            "atencion_desde": umbral_atencion,
-            "critico_desde": umbral_critico,
-        },
-        "resumen": {
-            "procesos_vigentes": total_vigentes,
-            "normales": total_normales,
-            "atencion": total_atencion,
-            "criticos": total_criticos,
-            "promedio_dias": promedio_dias,
-            "max_dias": max_dias,
-        },
-        "antiguedad": antiguedad,
-        "ranking_ponentes": ranking_ponentes,
-        "por_categoria": por_categoria,
-        "por_medio": por_medio,
-        "procesos_criticos": procesos_criticos,
-    }
-
 
 @app.get("/api/no-clasificados")
 def obtener_no_clasificados(
@@ -913,59 +602,19 @@ def exportar_excel(
             detail="No hay datos cargados para exportar.",
         )
 
-    col_ent = meta_db.get("col_ent")
-    col_ponente = meta_db.get("col_ponente")
-
-    # Filtro por fecha inicial
-    if col_ent:
-        try:
-            if desde and desde not in ("undefined", "null", "none", ""):
-                fecha_desde = pd.to_datetime(desde, errors="coerce")
-
-                if pd.notna(fecha_desde):
-                    df = df[df[col_ent] >= fecha_desde]
-        except Exception:
-            pass
-
-    # Filtro por fecha final
-    if col_ent:
-        try:
-            if hasta and hasta not in ("undefined", "null", "none", ""):
-                fecha_hasta = pd.to_datetime(hasta, errors="coerce")
-
-                if pd.notna(fecha_hasta):
-                    df = df[df[col_ent] <= fecha_hasta]
-        except Exception:
-            pass
-
-    # Filtro por ponente
-    if ponente and ponente != "General" and col_ponente:
-        df = df[df[col_ponente] == ponente]
-
-    # No exportar columnas internas del sistema
-    cols_a_enviar = [c for c in df.columns if not str(c).startswith("_")]
-
-    df_publico = df[cols_a_enviar]
-
-    output = io.BytesIO()
-
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df_publico.to_excel(
-            writer,
-            index=False,
-            sheet_name="Datos_Rendicion_Filtrados",
-        )
-
-    output.seek(0)
-
-    filename = (
-        f"reporte_{ponente or 'General'}_" f"{datetime.now().strftime('%Y%m%d')}.xlsx"
+    output, filename = generar_excel_exportacion(
+        df,
+        meta_db,
+        desde,
+        hasta,
+        ponente,
     )
 
     return StreamingResponse(
         output,
         media_type=(
-            "application/vnd.openxmlformats-officedocument." "spreadsheetml.sheet"
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
         ),
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
