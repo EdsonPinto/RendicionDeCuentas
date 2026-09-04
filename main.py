@@ -1,11 +1,9 @@
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 
 import app_state
-from auth import obtener_usuario_actual
 from config import CORS_ORIGINS
-from schemas import Usuario
 from services.estadisticas_service import generar_reporte as generar_reporte_estadisticas
 from routers.admin_router import router as admin_router
 from routers.auth_router import router as auth_router
@@ -38,10 +36,3 @@ app.include_router(mapeos_router)
 
 def generar_reporte(df_base: pd.DataFrame) -> dict:
     return generar_reporte_estadisticas(df_base, app_state.meta)
-
-
-@app.post("/api/logout")
-def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    app_state.db_temporal = None
-    app_state.meta = {}
-    return {"status": "ok", "mensaje": "Sesión cerrada y datos temporales purgados."}

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
+import app_state
 from auth import autenticar_usuario, crear_token_acceso, obtener_usuario_actual
 from database import get_session
 from schemas import Token, Usuario
@@ -33,3 +34,10 @@ def obtener_perfil_actual(
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
     return usuario_actual
+
+
+@router.post("/api/logout")
+def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
+    app_state.db_temporal = None
+    app_state.meta = {}
+    return {"status": "ok", "mensaje": "Sesión cerrada y datos temporales purgados."}
