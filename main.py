@@ -41,13 +41,13 @@ from services.excel_service import (
 from services.estadisticas_service import (
     generar_reporte as generar_reporte_estadisticas,
 )
-from services.comparativa_service import obtener_comparativa as obtener_comparativa_service
-from services.cuello_botella_service import obtener_cuellos_botella as obtener_cuellos_botella_service
 from services.export_service import generar_excel_exportacion
 from routers.auth_router import router as auth_router
 from routers.admin_router import router as admin_router
 from routers.excel_router import router as excel_router
 from routers.estadisticas_router import router as estadisticas_router
+from routers.comparativa_router import router as comparativa_router
+from routers.cuello_botella_router import router as cuello_botella_router
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -63,6 +63,8 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(excel_router)
 app.include_router(estadisticas_router)
+app.include_router(comparativa_router)
+app.include_router(cuello_botella_router)
 
 
 MAPEO_DINAMICO_UI = {}
@@ -77,90 +79,6 @@ def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
 def generar_reporte(df_base: pd.DataFrame) -> dict:
     return generar_reporte_estadisticas(df_base, app_state.meta)
 
-
-@app.get("/api/comparativa")
-def obtener_comparativa(
-    modo: str = Query("periodo"),
-    desde_a: Optional[str] = Query(None),
-    hasta_a: Optional[str] = Query(None),
-    ponente_a: Optional[str] = Query("General"),
-    tipo_a: Optional[str] = Query("todos"),
-    desde_b: Optional[str] = Query(None),
-    hasta_b: Optional[str] = Query(None),
-    ponente_b: Optional[str] = Query("General"),
-    tipo_b: Optional[str] = Query("todos"),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),
-    session: Session = Depends(get_session),
-):
-    df, meta_db = cargar_dataframe_desde_db(session)
-
-    if df is None or df.empty:
-        raise HTTPException(
-            status_code=400,
-            detail="No hay datos cargados en el sistema.",
-        )
-
-    return obtener_comparativa_service(
-        df,
-        meta_db,
-        modo,
-        desde_a,
-        hasta_a,
-        ponente_a,
-        tipo_a,
-        desde_b,
-        hasta_b,
-        ponente_b,
-        tipo_b,
-        generar_reporte,
-    )
-
-
-@app.get("/api/cuello-botella")
-def obtener_cuellos_botella(
-    umbral_atencion: int = Query(180, ge=0),
-    umbral_critico: int = Query(365, ge=1),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),
-    session: Session = Depends(get_session),
-):
-    df, meta_db = cargar_dataframe_desde_db(session)
-
-    if df is None or df.empty:
-        raise HTTPException(
-            status_code=400,
-            detail="No hay datos cargados en el sistema.",
-        )
-
-    col_ent = meta_db.get("col_ent")
-    col_ponente = meta_db.get("col_ponente")
-    col_vigente = meta_db.get("col_vigente")
-    col_rad = meta_db.get("col_rad")
-    col_medio = meta_db.get("col_medio")
-
-    if not col_ent:
-        raise HTTPException(
-            status_code=400,
-            detail="No se encontró la columna de fecha de entrada.",
-        )
-
-    if not col_vigente:
-        raise HTTPException(
-            status_code=400,
-            detail="No se encontró la columna de vigencia.",
-        )
-
-    if not col_ponente:
-        raise HTTPException(
-            status_code=400,
-            detail="No se encontró la columna de ponente.",
-        )
-
-    return obtener_cuellos_botella_service(
-        df,
-        meta_db,
-        umbral_atencion,
-        umbral_critico,
-    )
 
 @app.get("/api/no-clasificados")
 def obtener_no_clasificados(
