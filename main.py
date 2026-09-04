@@ -18,7 +18,6 @@ from auth import (
     verificar_admin,
 )
 from schemas import (
-    ListaMagistradosDTO,
     NuevoMapeoRequest,
     Token,
     Usuario,
@@ -63,13 +62,6 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 
 
-MAGISTRADOS_OFICIALES = [
-    "DR. MAURICIO JAVIER ROJAS",
-    "DRA. MARIA ELENA GOMEZ",
-    "DR. CARLOS ALBERTO PEREZ",
-]
-
-
 MAPEO_DINAMICO_UI = {}
 
 db_temporal = None
@@ -81,20 +73,6 @@ def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
     db_temporal = None
     meta = {}
     return {"status": "ok", "mensaje": "Sesión cerrada y datos temporales purgados."}
-
-
-@app.get("/api/admin/magistrados")
-def listar_magistrados(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    return {"magistrados": MAGISTRADOS_OFICIALES}
-
-
-@app.post("/api/admin/magistrados")
-def guardar_magistrados(
-    dto: ListaMagistradosDTO, admin: Usuario = Depends(verificar_admin)
-):
-    global MAGISTRADOS_OFICIALES
-    MAGISTRADOS_OFICIALES = [m.strip().upper() for m in dto.magistrados if m.strip()]
-    return {"status": "ok", "magistrados": MAGISTRADOS_OFICIALES}
 
 
 @app.post("/api/subir-archivo")

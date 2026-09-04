@@ -3,12 +3,19 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from auth import hash_password, verificar_admin
+from auth import hash_password, obtener_usuario_actual, verificar_admin
 from database import get_session
 from models import Usuario as UsuarioDB
-from schemas import Usuario, UsuarioCreateDTO, UsuarioUpdateDTO
+from schemas import ListaMagistradosDTO, Usuario, UsuarioCreateDTO, UsuarioUpdateDTO
 
 router = APIRouter()
+
+
+MAGISTRADOS_OFICIALES = [
+    "DR. MAURICIO JAVIER ROJAS",
+    "DRA. MARIA ELENA GOMEZ",
+    "DR. CARLOS ALBERTO PEREZ",
+]
 
 
 @router.get("/api/admin/usuarios", response_model=List[Usuario])
@@ -126,3 +133,17 @@ def eliminar_usuario(
         "status": "ok",
         "mensaje": f"Usuario {target_username} eliminado exitosamente.",
     }
+
+
+@router.get("/api/admin/magistrados")
+def listar_magistrados(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
+    return {"magistrados": MAGISTRADOS_OFICIALES}
+
+
+@router.post("/api/admin/magistrados")
+def guardar_magistrados(
+    dto: ListaMagistradosDTO, admin: Usuario = Depends(verificar_admin)
+):
+    global MAGISTRADOS_OFICIALES
+    MAGISTRADOS_OFICIALES = [m.strip().upper() for m in dto.magistrados if m.strip()]
+    return {"status": "ok", "magistrados": MAGISTRADOS_OFICIALES}
