@@ -47,6 +47,7 @@ from services.comparativa_service import obtener_comparativa as obtener_comparat
 from services.cuello_botella_service import obtener_cuellos_botella as obtener_cuellos_botella_service
 from services.export_service import generar_excel_exportacion
 from routers.auth_router import router as auth_router
+from routers.admin_router import router as admin_router
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -59,6 +60,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(admin_router)
 
 
 MAGISTRADOS_OFICIALES = [
@@ -79,123 +81,6 @@ def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
     db_temporal = None
     meta = {}
     return {"status": "ok", "mensaje": "Sesión cerrada y datos temporales purgados."}
-
-
-@app.get("/api/admin/usuarios", response_model=List[Usuario])
-def listar_usuarios(
-    admin: Usuario = Depends(verificar_admin),
-    session: Session = Depends(get_session),
-):
-    usuarios = session.exec(select(UsuarioDB)).all()
-
-    return [
-        Usuario(
-            username=u.email,
-            nombre=u.nombre,
-            rol=u.rol,
-        )
-        for u in usuarios
-    ]
-
-
-@app.post("/api/admin/usuarios")
-def crear_usuario(
-    dto: UsuarioCreateDTO,
-    admin: Usuario = Depends(verificar_admin),
-    session: Session = Depends(get_session),
-):
-    usuario_existente = session.exec(
-        select(UsuarioDB).where(UsuarioDB.email == dto.username)
-    ).first()
-
-    if usuario_existente:
-        raise HTTPException(
-            status_code=400,
-            detail="El usuario ya existe.",
-        )
-
-    nuevo_usuario = UsuarioDB(
-        nombre=dto.nombre.strip().upper(),
-        email=dto.username.strip().lower(),
-        password_hash=hash_password(dto.password),
-        rol=dto.rol.strip().lower(),
-    )
-
-    session.add(nuevo_usuario)
-    session.commit()
-    session.refresh(nuevo_usuario)
-
-    return {
-        "status": "ok",
-        "mensaje": f"Usuario {nuevo_usuario.email} creado exitosamente.",
-    }
-
-
-@app.put("/api/admin/usuarios/{target_username}")
-def editar_usuario(
-    target_username: str,
-    dto: UsuarioUpdateDTO,
-    admin: Usuario = Depends(verificar_admin),
-    session: Session = Depends(get_session),
-):
-    usuario = session.exec(
-        select(UsuarioDB).where(UsuarioDB.email == target_username)
-    ).first()
-
-    if usuario is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Usuario no encontrado.",
-        )
-
-    if dto.nombre is not None and dto.nombre.strip():
-        usuario.nombre = dto.nombre.strip().upper()
-
-    if dto.rol is not None and dto.rol.strip():
-        usuario.rol = dto.rol.strip().lower()
-
-    if dto.password is not None and dto.password.strip():
-        usuario.password_hash = hash_password(dto.password)
-
-    session.add(usuario)
-    session.commit()
-    session.refresh(usuario)
-
-    return {
-        "status": "ok",
-        "mensaje": f"Usuario {usuario.email} actualizado.",
-    }
-
-
-@app.delete("/api/admin/usuarios/{target_username}")
-def eliminar_usuario(
-    target_username: str,
-    admin: Usuario = Depends(verificar_admin),
-    session: Session = Depends(get_session),
-):
-    if target_username == admin.username:
-        raise HTTPException(
-            status_code=400,
-            detail="No puedes eliminar tu propio usuario administrador en sesión.",
-        )
-
-    usuario = session.exec(
-        select(UsuarioDB).where(UsuarioDB.email == target_username)
-    ).first()
-
-    if usuario is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Usuario no encontrado.",
-        )
-
-    session.delete(usuario)
-    session.commit()
-
-    return {
-        "status": "ok",
-        "mensaje": f"Usuario {target_username} eliminado exitosamente.",
-    }
 
 
 @app.get("/api/admin/magistrados")
