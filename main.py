@@ -40,7 +40,6 @@ from services.excel_service import (
 )
 from services.estadisticas_service import (
     generar_reporte as generar_reporte_estadisticas,
-    obtener_estadisticas as obtener_estadisticas_service,
 )
 from services.comparativa_service import obtener_comparativa as obtener_comparativa_service
 from services.cuello_botella_service import obtener_cuellos_botella as obtener_cuellos_botella_service
@@ -48,6 +47,7 @@ from services.export_service import generar_excel_exportacion
 from routers.auth_router import router as auth_router
 from routers.admin_router import router as admin_router
 from routers.excel_router import router as excel_router
+from routers.estadisticas_router import router as estadisticas_router
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -62,6 +62,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(excel_router)
+app.include_router(estadisticas_router)
 
 
 MAPEO_DINAMICO_UI = {}
@@ -75,31 +76,6 @@ def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
 
 def generar_reporte(df_base: pd.DataFrame) -> dict:
     return generar_reporte_estadisticas(df_base, app_state.meta)
-
-
-@app.get("/api/estadisticas")
-def obtener_estadisticas(
-    desde: str = None,
-    hasta: str = None,
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),
-    session: Session = Depends(get_session),
-):
-    df, meta_db = cargar_dataframe_desde_db(session)
-
-    if df is not None:
-        app_state.meta = meta_db.copy()
-
-    if df is None:
-        return {"error": "No hay datos"}
-
-    return obtener_estadisticas_service(
-        df,
-        meta_db,
-        usuario_actual.nombre,
-        usuario_actual.rol,
-        desde,
-        hasta,
-    )
 
 
 @app.get("/api/comparativa")
