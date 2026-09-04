@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Query, HTTPException, Depends, status
+from fastapi import FastAPI, Query, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from datetime import datetime
@@ -7,6 +7,7 @@ from typing import List, Optional
 from sqlmodel import Session, select
 import pandas as pd
 import io
+import app_state
 
 # ─── IMPORTAR CONFIGURACIÓN CENTRALIZADA ──────────────────────────────────────
 from config import CORS_ORIGINS
@@ -36,7 +37,6 @@ from services.mapeo_service import obtener_mapeos_dinamicos
 from services.excel_service import (
     cargar_dataframe_desde_db,
     obtener_df_desde_bd,
-    procesar_archivo_excel,
 )
 from services.estadisticas_service import (
     generar_reporte as generar_reporte_estadisticas,
@@ -47,6 +47,7 @@ from services.cuello_botella_service import obtener_cuellos_botella as obtener_c
 from services.export_service import generar_excel_exportacion
 from routers.auth_router import router as auth_router
 from routers.admin_router import router as admin_router
+from routers.excel_router import router as excel_router
 
 app = FastAPI(title="Rendición de Cuentas - API Completa", version="2.0")
 
@@ -60,51 +61,20 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(excel_router)
 
 
 MAPEO_DINAMICO_UI = {}
 
-db_temporal = None
-meta = {}
-
 @app.post("/api/logout")
 def cerrar_sesion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    global db_temporal, meta
-    db_temporal = None
-    meta = {}
+    app_state.db_temporal = None
+    app_state.meta = {}
     return {"status": "ok", "mensaje": "Sesión cerrada y datos temporales purgados."}
 
 
-@app.post("/api/subir-archivo")
-async def subir_archivo(
-    file: UploadFile = File(...),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),
-    session: Session = Depends(get_session),
-):
-    global db_temporal, meta
-    try:
-        content = await file.read()
-        df, metadata, carga_id, registros_guardados = procesar_archivo_excel(
-            content,
-            file.filename or "archivo_sin_nombre.xlsx",
-            usuario_actual.username,
-            session,
-        )
-        db_temporal = df
-        meta = metadata
-        return {
-            "status": "ok",
-            "operador": usuario_actual.nombre,
-            "archivo": file.filename,
-            "carga_id": carga_id,
-            "registros_guardados": registros_guardados,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 def generar_reporte(df_base: pd.DataFrame) -> dict:
-    return generar_reporte_estadisticas(df_base, meta)
+    return generar_reporte_estadisticas(df_base, app_state.meta)
 
 
 @app.get("/api/estadisticas")
@@ -116,10 +86,8 @@ def obtener_estadisticas(
 ):
     df, meta_db = cargar_dataframe_desde_db(session)
 
-    global meta
-
     if df is not None:
-        meta = meta_db.copy()
+        app_state.meta = meta_db.copy()
 
     if df is None:
         return {"error": "No hay datos"}
@@ -288,8 +256,6 @@ def agregar_mapeo_dinamico(
     Solo los administradores pueden crear mapeos.
     """
 
-    global db_temporal, meta
-
     # ---------------------------------------------------------
     # 1. Validar permisos
     # ---------------------------------------------------------
@@ -407,13 +373,13 @@ def agregar_mapeo_dinamico(
         if col_medio and col_medio in df.columns:
             df = aplicar_categorizacion(df, col_medio)
 
-        db_temporal = df
-        meta = meta_db
+        app_state.db_temporal = df
+        app_state.meta = meta_db
 
-    elif db_temporal is not None and meta.get("col_medio"):
-        db_temporal = aplicar_categorizacion(
-            db_temporal,
-            meta["col_medio"],
+    elif app_state.db_temporal is not None and app_state.meta.get("col_medio"):
+        app_state.db_temporal = aplicar_categorizacion(
+            app_state.db_temporal,
+            app_state.meta["col_medio"],
         )
 
     return {
