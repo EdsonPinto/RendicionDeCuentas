@@ -14,10 +14,11 @@ router = APIRouter()
 def obtener_cuellos_botella_endpoint(
     umbral_atencion: int = Query(180, ge=0),
     umbral_critico: int = Query(365, ge=1),
+    carga_id: int = Query(None),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    df, meta_db = cargar_dataframe_desde_db(session)
+    df, meta_db = cargar_dataframe_desde_db(session, carga_id)
 
     if df is None or df.empty:
         raise HTTPException(

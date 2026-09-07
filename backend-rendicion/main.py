@@ -2,10 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import CORS_ORIGINS
+from database import create_db_and_tables
 from routers.admin_router import router as admin_router
 from routers.auth_router import router as auth_router
 from routers.comparativa_router import router as comparativa_router
 from routers.cuello_botella_router import router as cuello_botella_router
+from routers.documentos_router import router as documentos_router
 from routers.estadisticas_router import router as estadisticas_router
 from routers.excel_router import router as excel_router
 from routers.export_router import router as export_router
@@ -29,3 +31,9 @@ app.include_router(comparativa_router)
 app.include_router(cuello_botella_router)
 app.include_router(export_router)
 app.include_router(mapeos_router)
+app.include_router(documentos_router)
+
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()

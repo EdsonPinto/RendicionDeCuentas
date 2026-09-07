@@ -20,9 +20,17 @@ class CargaExcel(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre_archivo: str
     fecha_carga: datetime = Field(default_factory=datetime.utcnow)
+    es_global: bool = Field(default=False)
 
     usuario_id: int = Field(foreign_key="usuario.id")
     usuario: Usuario = Relationship(back_populates="cargas")
+
+class MagistradoOficial(SQLModel, table=True):
+    __tablename__ = "magistradooficial"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nombre: str = Field(unique=True, index=True)
+
 
 class MapeoDinamico(SQLModel, table=True):
     __tablename__ = "mapeodinamico"

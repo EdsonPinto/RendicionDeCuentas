@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { ShieldCheck, FileUp, Loader2, Calendar, LogOut, Database, Users, Layers, AlertTriangle, Download } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { ShieldCheck, FileUp, Loader2, LogOut, Database, AlertTriangle, Download } from 'lucide-react';
 import './App.css';
 
 // Importación de Vistas y Componentes modularizados
@@ -9,9 +9,35 @@ import { GestionView } from './components/GestionView';
 import { AnalisisView } from './components/AnalisisView';
 import { ComparativaView } from './components/ComparativaView';
 import { AdminCrudView } from './components/AdminCrudView';
-import { CuelloBotellaView } from './components/CuelloBotellaView'
+import { CuelloBotellaView } from './components/CuelloBotellaView';
+import { AppTabs } from './components/AppTabs';
+import { GlobalFilters } from './components/GlobalFilters';
+import { derivarMagistrados } from './utils/ponentes';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+function sumarTablas(t1 = [], t2 = []) {
+  const mapa = {};
+  [...t1, ...t2].forEach(row => {
+    if (!mapa[row.medio]) {
+      mapa[row.medio] = { medio: row.medio, ingresos: 0, egresos: 0 };
+    }
+    mapa[row.medio].ingresos += Number(row.ingresos || 0);
+    mapa[row.medio].egresos += Number(row.egresos || 0);
+  });
+  return Object.values(mapa);
+}
+
+function fusionarEntidades(e1 = [], e2 = []) {
+  const mapa = {};
+  [...e1, ...e2].forEach(ent => {
+    if (!mapa[ent.nombre]) {
+      mapa[ent.nombre] = { nombre: ent.nombre, cantidad: 0 };
+    }
+    mapa[ent.nombre].cantidad += Number(ent.cantidad || 0);
+  });
+  return Object.values(mapa).sort((a, b) => b.cantidad - a.cantidad);
+}
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -20,7 +46,7 @@ function App() {
   const [userProfile, setUserProfile] = useState(null);
   const [data, setData] = useState(null);
   const [view, setView] = useState('General');
-  const [subViewMode, setSubViewMode] = useState('todos');
+  const [subViewMode, setSubViewMode] = useState('principal');
   const [activeTab, setActiveTab] = useState('gestion');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -44,12 +70,25 @@ function App() {
 
   // ESTADOS MÓDULO COMPARATIVAS
   const [compMode, setCompMode] = useState('periodo');
-  const [compSubTab, setCompSubTab] = useState('metricas');
+  const compSubTab = 'metricas';
   const [compFilters, setCompFilters] = useState({
     desde_a: '', hasta_a: '', ponente_a: 'General', tipo_a: 'todos',
     desde_b: '', hasta_b: '', ponente_b: 'General', tipo_b: 'todos'
   });
   const [compData, setCompData] = useState(null);
+
+  const syncedCatalogKeysRef = useRef(new Set());
+  const inFlightCatalogKeysRef = useRef(new Set());
+  const catalogMutationVersionRef = useRef(0);
+  const adminCatalogRequestIdRef = useRef(0);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    setToken('');
+    setUserProfile(null);
+    setData(null);
+    setError(null);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -81,15 +120,26 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken('');
-    setUserProfile(null);
-    setData(null);
-    setError(null);
-  };
+  const fetchAdminData = useCallback(async (tok = token) => {
+    if (!tok) return;
+    const requestId = ++adminCatalogRequestIdRef.current;
+    const requestVersion = catalogMutationVersionRef.current;
+    try {
+      const [resUsr, resMag] = await Promise.all([
+        fetch(`${API_URL}/api/admin/usuarios`, { headers: { 'Authorization': `Bearer ${tok}` } }),
+        fetch(`${API_URL}/api/admin/magistrados`, { headers: { 'Authorization': `Bearer ${tok}` } })
+      ]);
+      if (resUsr.ok) setUsuariosList(await resUsr.json());
+      if (resMag.ok && requestId === adminCatalogRequestIdRef.current && requestVersion === catalogMutationVersionRef.current) {
+        const dataM = await resMag.json();
+        setMagistradosList(dataM.magistrados || []);
+      }
+    } catch (e) {
+      console.error("Error al cargar datos administrativos:", e);
+    }
+  }, [token]);
 
-  const fetchUserProfile = async (currentToken = token) => {
+  const fetchUserProfile = useCallback(async (currentToken = token) => {
     if (!currentToken) return;
     try {
       const res = await fetch(`${API_URL}/api/me`, {
@@ -112,9 +162,9 @@ function App() {
     } catch (e) {
       console.error("Error obteniendo perfil:", e);
     }
-  };
+  }, [token, handleLogout, fetchAdminData]);
 
-  const fetchStats = async (d = dates.desde, h = dates.hasta, currentToken = token) => {
+  const fetchStats = useCallback(async (d = dates.desde, h = dates.hasta, currentToken = token) => {
     if (!currentToken) return;
     try {
       const res = await fetch(`${API_URL}/api/estadisticas?desde=${d}&hasta=${h}`, {
@@ -133,9 +183,9 @@ function App() {
     } catch (err) {
       console.error("Error obteniendo estadísticas:", err);
     }
-  };
+  }, [dates.desde, dates.hasta, token, handleLogout]);
 
-  const fetchComparativa = async () => {
+  const fetchComparativa = useCallback(async () => {
     if (!token || !data) return;
     setLoading(true);
     try {
@@ -162,23 +212,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchAdminData = async (tok = token) => {
-    try {
-      const [resUsr, resMag] = await Promise.all([
-        fetch(`${API_URL}/api/admin/usuarios`, { headers: { 'Authorization': `Bearer ${tok}` } }),
-        fetch(`${API_URL}/api/admin/magistrados`, { headers: { 'Authorization': `Bearer ${tok}` } })
-      ]);
-      if (resUsr.ok) setUsuariosList(await resUsr.json());
-      if (resMag.ok) {
-        const dataM = await resMag.json();
-        setMagistradosList(dataM.magistrados || []);
-      }
-    } catch (e) {
-      console.error("Error al cargar datos administrativos:", e);
-    }
-  };
+  }, [token, data, compMode, compFilters, view, subViewMode]);
 
   const handleSaveUsuario = async (e) => {
     e.preventDefault();
@@ -215,6 +249,11 @@ function App() {
   const handleEditUsuarioClick = (usr) => {
     setEditingUsr(usr.username);
     setUsrForm({ username: usr.username, nombre: usr.nombre, rol: usr.rol, password: '' });
+  };
+
+  const handleVincularMagistrado = (nombreMag) => {
+    setEditingUsr(null);
+    setUsrForm({ username: '', nombre: nombreMag, rol: 'usuario', password: '' });
   };
 
   const handleDeleteUsuario = async (usrUsername) => {
@@ -333,25 +372,49 @@ function App() {
       fetchUserProfile(token);
       fetchStats(dates.desde, dates.hasta, token);
     }
-  }, [token]);
+  }, [token, fetchUserProfile, fetchStats, dates.desde, dates.hasta]);
+
+  useEffect(() => {
+    if (userProfile?.rol !== 'admin' || !data?.lista_ponentes?.length) return;
+    const catalogoDerivado = derivarMagistrados(data.lista_ponentes);
+    if (!catalogoDerivado.length) return;
+
+    setMagistradosList(catalogoDerivado);
+    const syncKey = `${token}:${JSON.stringify(catalogoDerivado)}`;
+    if (syncedCatalogKeysRef.current.has(syncKey) || inFlightCatalogKeysRef.current.has(syncKey)) return;
+
+    inFlightCatalogKeysRef.current.add(syncKey);
+    catalogMutationVersionRef.current += 1;
+    fetch(`${API_URL}/api/admin/magistrados`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ magistrados: catalogoDerivado })
+    }).then((res) => {
+      if (!res.ok) throw new Error(`Error sincronizando catálogo (${res.status})`);
+      syncedCatalogKeysRef.current.add(syncKey);
+      setMagistradosList(catalogoDerivado);
+    }).catch((err) => {
+      console.error('Error sincronizando catálogo de magistrados:', err);
+    }).finally(() => {
+      inFlightCatalogKeysRef.current.delete(syncKey);
+    });
+  }, [data, userProfile, token]);
 
   useEffect(() => {
     if (activeTab === 'comparativa' && compSubTab === 'metricas') {
       fetchComparativa();
     }
-  }, [activeTab, compMode, compFilters, view, subViewMode, compSubTab]);
+  }, [activeTab, compSubTab, fetchComparativa]);
 
   const listaMagistradosUnicos = useMemo(() => {
     if (!data?.lista_ponentes) return [];
-    const limpios = new Set();
-    data.lista_ponentes.forEach(p => {
-      const base = p.replace(/\s*\*?\s*cambio\s+ponente/gi, '').trim();
-      if (base) limpios.add(base);
-    });
-    return Array.from(limpios).sort();
+    return derivarMagistrados(data.lista_ponentes);
   }, [data]);
 
-  const resolverDatosMagistrado = (nombreMag, subModo) => {
+  const resolverDatosMagistrado = useCallback((nombreMag, subModo) => {
     if (!data?.general) return null;
     if (nombreMag === 'General') return data.general;
 
@@ -398,30 +461,7 @@ function App() {
       },
       entidades: fusionarEntidades(p1?.entidades, p2?.entidades)
     };
-  };
-
-  function sumarTablas(t1 = [], t2 = []) {
-    const mapa = {};
-    [...t1, ...t2].forEach(row => {
-      if (!mapa[row.medio]) {
-        mapa[row.medio] = { medio: row.medio, ingresos: 0, egresos: 0 };
-      }
-      mapa[row.medio].ingresos += Number(row.ingresos || 0);
-      mapa[row.medio].egresos += Number(row.egresos || 0);
-    });
-    return Object.values(mapa);
-  }
-
-  function fusionarEntidades(e1 = [], e2 = []) {
-    const mapa = {};
-    [...e1, ...e2].forEach(ent => {
-      if (!mapa[ent.nombre]) {
-        mapa[ent.nombre] = { nombre: ent.nombre, cantidad: 0 };
-      }
-      mapa[ent.nombre].cantidad += Number(ent.cantidad || 0);
-    });
-    return Object.values(mapa).sort((a, b) => b.cantidad - a.cantidad);
-  }
+  }, [data]);
 
   const keysMatchingView = useMemo(() => {
     if (view === 'General' || !data?.ponentes) return [];
@@ -437,7 +477,7 @@ function App() {
     if (!data?.general) return null;
     if (view === 'General') return data.general;
     return resolverDatosMagistrado(view, subViewMode);
-  }, [data, view, subViewMode, keysMatchingView]);
+  }, [data, view, subViewMode, resolverDatosMagistrado]);
 
   const filteredEntidades = useMemo(() => {
     if (!cur?.entidades) return [];
@@ -477,9 +517,9 @@ function App() {
     );
   }
 
-  // Comprobación exacta para el bloqueo dinámico de los filtros de fecha según el modo de comparativa
   const isPeriodoCompActive = activeTab === 'comparativa' && compMode === 'periodo';
   const isMagistradoCompActive = activeTab === 'comparativa' && compMode === 'magistrado';
+  const isCuelloBotellaActive = activeTab === 'cuello_botella';
 
   return (
     <div className="app-container">
@@ -498,84 +538,22 @@ function App() {
         </div>
 
         <div className="header-actions">
-          <div
-            className="date-group"
-            style={{
-              opacity: (!data || isPeriodoCompActive) ? 0.4 : 1,
-              cursor: (!data || isPeriodoCompActive) ? 'not-allowed' : 'default',
-              backgroundColor: (!data || isPeriodoCompActive) ? '#f1f5f9' : '#ffffff'
-            }}
-          >
-            <div className="date-field">
-              <Calendar
-                size={14}
-                color={(!data || isPeriodoCompActive) ? "#94a3b8" : "#3b82f6"}
-                strokeWidth={2.5}
-                className="date-icon"
-                onClick={() => data && !isPeriodoCompActive && document.getElementById('input-desde').showPicker()}
-                style={{ cursor: (!data || isPeriodoCompActive) ? 'not-allowed' : 'pointer' }}
-              />
-              <input
-                id="input-desde"
-                type="date"
-                className="nav-input"
-                disabled={!data || isPeriodoCompActive}
-                value={dates.desde}
-                onChange={(e) => { setDates({ ...dates, desde: e.target.value }); fetchStats(e.target.value, dates.hasta); }}
-                style={{ cursor: (!data || isPeriodoCompActive) ? 'not-allowed' : 'pointer' }}
-              />
-            </div>
-            <span className="to-text">AL</span>
-            <div className="date-field">
-              <Calendar
-                size={14}
-                color={(!data || isPeriodoCompActive) ? "#94a3b8" : "#3b82f6"}
-                strokeWidth={2.5}
-                className="date-icon"
-                onClick={() => data && !isPeriodoCompActive && document.getElementById('input-hasta').showPicker()}
-                style={{ cursor: (!data || isPeriodoCompActive) ? 'not-allowed' : 'pointer' }}
-              />
-              <input
-                id="input-hasta"
-                type="date"
-                className="nav-input"
-                disabled={!data || isPeriodoCompActive}
-                value={dates.hasta}
-                onChange={(e) => { setDates({ ...dates, hasta: e.target.value }); fetchStats(dates.desde, e.target.value); }}
-                style={{ cursor: (!data || isPeriodoCompActive) ? 'not-allowed' : 'pointer' }}
-              />
-            </div>
-          </div>
-
-          {/* Selector de Magistrado / Vista Global con bloqueo automático en modo Magistrado vs Magistrado */}
-          <select
-            className="nav-select"
-            value={view}
-            onChange={(e) => { setView(e.target.value); setSubViewMode('todos'); setLimitVigentes(50); }}
-            disabled={isMagistradoCompActive}
-            style={{
-              cursor: isMagistradoCompActive ? 'not-allowed' : 'pointer',
-              opacity: isMagistradoCompActive ? 0.4 : 1,
-              backgroundColor: isMagistradoCompActive ? '#f1f5f9' : '#ffffff'
-            }}
-          >
-            <option value="General">🌐 VISTA GLOBAL</option>
-            {listaMagistradosUnicos.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-
-          {view !== 'General' && hasCambioPonenteSubtype && !isMagistradoCompActive && (
-            <select
-              className="nav-select"
-              value={subViewMode}
-              onChange={(e) => setSubViewMode(e.target.value)}
-              style={{ backgroundColor: '#fef08a', borderColor: '#000', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer' }}
-              title="Filtrar por tipo de asignación"
-            >
-              <option value="todos">🔀 TODOS (Unificados)</option>
-              <option value="principal">📌 Solo Principales</option>
-              <option value="cambio">🔄 Solo Cambio Ponente</option>
-            </select>
-          )}
+          <GlobalFilters
+            data={data}
+            dates={dates}
+            setDates={setDates}
+            fetchStats={fetchStats}
+            view={view}
+            setView={setView}
+            subViewMode={subViewMode}
+            setSubViewMode={setSubViewMode}
+            setLimitVigentes={setLimitVigentes}
+            listaMagistradosUnicos={listaMagistradosUnicos}
+            hasCambioPonenteSubtype={hasCambioPonenteSubtype}
+            isPeriodoCompActive={isPeriodoCompActive}
+            isMagistradoCompActive={isMagistradoCompActive}
+            isCuelloBotellaActive={isCuelloBotellaActive}
+          />
 
           <div className="action-buttons-wrapper">
             <button onClick={handleExportExcel} className="btn-action btn-excel" title="Descargar Excel" disabled={!cur}>
@@ -593,29 +571,7 @@ function App() {
       </nav>
 
       <main className="content">
-        <div className="tabs-container">
-          {userProfile?.rol === 'admin' && (
-            <button
-              className={activeTab === 'admin_crud' ? 'tab active' : 'tab'}
-              onClick={() => setActiveTab('admin_crud')}
-              style={{ background: activeTab === 'admin_crud' ? '#000' : '#3b82f6', color: '#fff' }}
-            >
-              <Users size={16} style={{ display: 'inline', marginRight: '6px' }} /> 👑 USUARIOS Y MAGISTRADOS
-            </button>
-          )}
-
-          <button className={activeTab === 'gestion' ? 'tab active' : 'tab'} onClick={() => setActiveTab('gestion')}>GESTIÓN PROCESAL</button>
-          <button className={activeTab === 'analisis' ? 'tab active' : 'tab'} onClick={() => setActiveTab('analisis')}>ANÁLISIS ESTRATÉGICO</button>
-          <button className={activeTab === 'comparativa' ? 'tab active' : 'tab'} onClick={() => setActiveTab('comparativa')}>
-            <Layers size={16} style={{ display: 'inline', marginRight: '6px' }} /> ⚖️ COMPARATIVAS
-          </button>
-          <button
-            className={activeTab === 'cuello_botella' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('cuello_botella')}
-          >
-            🚨 CUELLO DE BOTELLA
-          </button>
-        </div>
+        <AppTabs activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={userProfile?.rol === 'admin'} />
 
         {cur && (activeTab === 'gestion' || activeTab === 'analisis') && (
           <div className="kpi-grid">
@@ -662,6 +618,7 @@ function App() {
             handleAddMagistrado={handleAddMagistrado}
             magistradosList={magistradosList}
             handleDeleteMagistrado={handleDeleteMagistrado}
+            handleVincularMagistrado={handleVincularMagistrado}
           />
         )}
 
@@ -683,7 +640,6 @@ function App() {
         {activeTab === 'cuello_botella' && (
           <CuelloBotellaView token={token} />
         )}
-
 
         {cur && activeTab === 'analisis' && (
           <AnalisisView

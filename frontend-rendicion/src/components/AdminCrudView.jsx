@@ -1,5 +1,6 @@
 import React from 'react';
-import { UserPlus, Edit3, Trash2, Save, X, PlusCircle } from 'lucide-react';
+import { UserPlus, Edit3, Trash2, Save, X, PlusCircle, UserCheck, UserX } from 'lucide-react';
+import { normalizarTexto } from '../utils/ponentes';
 
 export const AdminCrudView = ({
     editingUsr,
@@ -13,7 +14,8 @@ export const AdminCrudView = ({
     setNuevoMagistradoInput,
     handleAddMagistrado,
     magistradosList,
-    handleDeleteMagistrado
+    handleDeleteMagistrado,
+    handleVincularMagistrado
 }) => (
     <div className="analysis-layout">
         <div className="strategic-filters-panel" style={{ background: '#dbeafe', border: '3px solid #000', boxShadow: '6px 6px 0 #000' }}>
@@ -188,29 +190,46 @@ export const AdminCrudView = ({
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                    {magistradosList.map((m, idx) => (
-                        <div
-                            key={idx}
-                            style={{
-                                background: '#ffffff',
-                                border: '2px solid #000000',
-                                borderRadius: '10px',
-                                padding: '10px 16px',
-                                fontWeight: '900',
-                                fontSize: '0.8rem',
-                                color: '#000000',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                boxShadow: '4px 4px 0 #000000'
-                            }}
-                        >
-                            <span>{m}</span>
-                            <button onClick={() => handleDeleteMagistrado(m)} title="Eliminar Magistrado" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center' }}>
-                                <X size={16} />
-                            </button>
-                        </div>
-                    ))}
+                    {magistradosList.map((m, idx) => {
+                        const tieneCuenta = usuariosList.some(u => normalizarTexto(u.nombre) === normalizarTexto(m));
+                        return (
+                            <div
+                                key={idx}
+                                style={{
+                                    background: '#ffffff',
+                                    border: `2px solid ${tieneCuenta ? '#000000' : '#ea580c'}`,
+                                    borderRadius: '10px',
+                                    padding: '10px 16px',
+                                    fontWeight: '900',
+                                    fontSize: '0.8rem',
+                                    color: '#000000',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    boxShadow: '4px 4px 0 #000000'
+                                }}
+                            >
+                                {tieneCuenta ? (
+                                    <UserCheck size={15} color="#16a34a" title="Tiene cuenta de usuario" />
+                                ) : (
+                                    <UserX size={15} color="#ea580c" title="Sin cuenta de usuario" />
+                                )}
+                                <span>{m}</span>
+                                {!tieneCuenta && (
+                                    <button
+                                        onClick={() => handleVincularMagistrado(m)}
+                                        title="Crear usuario para este magistrado"
+                                        style={{ background: '#3b82f6', border: '2px solid #000', color: '#fff', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}
+                                    >
+                                        <UserPlus size={13} /> CREAR USUARIO
+                                    </button>
+                                )}
+                                <button onClick={() => handleDeleteMagistrado(m)} title="Eliminar Magistrado" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center' }}>
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

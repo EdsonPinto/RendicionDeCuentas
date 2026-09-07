@@ -15,10 +15,11 @@ router = APIRouter()
 def obtener_estadisticas(
     desde: str = None,
     hasta: str = None,
+    carga_id: int = None,
     usuario_actual: UsuarioSchema = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    df, meta_db = cargar_dataframe_desde_db(session)
+    df, meta_db = cargar_dataframe_desde_db(session, carga_id)
 
     if df is not None:
         app_state.meta = meta_db.copy()

@@ -39,8 +39,11 @@ def obtener_df_desde_bd(session: Session):
     return pd.DataFrame(datos)
 
 
-def cargar_dataframe_desde_db(session: Session):
-    carga = session.exec(select(CargaExcel).order_by(CargaExcel.id.desc())).first()
+def cargar_dataframe_desde_db(session: Session, carga_id: int = None):
+    if carga_id is not None:
+        carga = session.get(CargaExcel, carga_id)
+    else:
+        carga = session.exec(select(CargaExcel).order_by(CargaExcel.id.desc())).first()
 
     if not carga:
         return None, {}
@@ -172,7 +175,13 @@ def cargar_dataframe_desde_db(session: Session):
     return df, meta_db
 
 
-def procesar_archivo_excel(content: bytes, filename: str, usuario_email: str, session: Session):
+def procesar_archivo_excel(
+    content: bytes,
+    filename: str,
+    usuario_email: str,
+    session: Session,
+    es_global: bool = False,
+):
     df = pd.read_excel(io.BytesIO(content), engine="openpyxl")
     df.columns = [normalizar(c) for c in df.columns]
 
@@ -220,6 +229,7 @@ def procesar_archivo_excel(content: bytes, filename: str, usuario_email: str, se
 
     nueva_carga = CargaExcel(
         nombre_archivo=filename or "archivo_sin_nombre.xlsx",
+        es_global=bool(es_global),
         usuario_id=(
             session.exec(
                 select(Usuario).where(Usuario.email == usuario_email)
@@ -299,3 +309,30 @@ def procesar_archivo_excel(content: bytes, filename: str, usuario_email: str, se
     }
 
     return df, meta, nueva_carga.id, registros_guardados
+
+
+def listar_documentos(session: Session, usuario_actual_id: int):
+    cargas = session.exec(select(CargaExcel).order_by(CargaExcel.fecha_carga.desc())).all()
+
+    resultado = []
+    for carga in cargas:
+        propietario = session.get(Usuario, carga.usuario_id)
+        total_registros = len(
+            session.exec(
+                select(DatoProcesal.id).where(DatoProcesal.carga_id == carga.id)
+            ).all()
+        )
+        resultado.append(
+            {
+                "id": carga.id,
+                "filename": carga.nombre_archivo,
+                "uploaded_by_id": carga.usuario_id,
+                "uploaded_by_name": propietario.nombre if propietario else "Desconocido",
+                "created_at": carga.fecha_carga.isoformat(),
+                "is_global": carga.es_global,
+                "is_owner": carga.usuario_id == usuario_actual_id,
+                "total_registros": total_registros,
+            }
+        )
+
+    return resultado

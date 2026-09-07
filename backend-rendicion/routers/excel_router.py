@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
 from sqlmodel import Session
 
 import app_state
@@ -13,6 +13,7 @@ router = APIRouter()
 @router.post("/api/subir-archivo")
 async def subir_archivo(
     file: UploadFile = File(...),
+    es_global: bool = Form(False),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
@@ -23,6 +24,7 @@ async def subir_archivo(
             file.filename or "archivo_sin_nombre.xlsx",
             usuario_actual.username,
             session,
+            es_global=es_global and usuario_actual.rol == "admin",
         )
         app_state.db_temporal = df
         app_state.meta = metadata

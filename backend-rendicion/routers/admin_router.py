@@ -5,13 +5,14 @@ from sqlmodel import Session, select
 
 from auth import hash_password, obtener_usuario_actual, verificar_admin
 from database import get_session
+from models import MagistradoOficial
 from models import Usuario as UsuarioDB
 from schemas import ListaMagistradosDTO, Usuario, UsuarioCreateDTO, UsuarioUpdateDTO
 
 router = APIRouter()
 
 
-MAGISTRADOS_OFICIALES = [
+MAGISTRADOS_OFICIALES_DEFECTO = [
     "DR. MAURICIO JAVIER ROJAS",
     "DRA. MARIA ELENA GOMEZ",
     "DR. CARLOS ALBERTO PEREZ",
@@ -136,14 +137,41 @@ def eliminar_usuario(
 
 
 @router.get("/api/admin/magistrados")
-def listar_magistrados(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
-    return {"magistrados": MAGISTRADOS_OFICIALES}
+def listar_magistrados(
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+    session: Session = Depends(get_session),
+):
+    registros = session.exec(
+        select(MagistradoOficial).order_by(MagistradoOficial.nombre)
+    ).all()
+
+    if not registros:
+        # Semilla inicial: si la tabla está vacía, se usa el catálogo por defecto
+        for nombre in MAGISTRADOS_OFICIALES_DEFECTO:
+            session.add(MagistradoOficial(nombre=nombre))
+        session.commit()
+        registros = session.exec(
+            select(MagistradoOficial).order_by(MagistradoOficial.nombre)
+        ).all()
+
+    return {"magistrados": [r.nombre for r in registros]}
 
 
 @router.post("/api/admin/magistrados")
 def guardar_magistrados(
-    dto: ListaMagistradosDTO, admin: Usuario = Depends(verificar_admin)
+    dto: ListaMagistradosDTO,
+    admin: Usuario = Depends(verificar_admin),
+    session: Session = Depends(get_session),
 ):
-    global MAGISTRADOS_OFICIALES
-    MAGISTRADOS_OFICIALES = [m.strip().upper() for m in dto.magistrados if m.strip()]
-    return {"status": "ok", "magistrados": MAGISTRADOS_OFICIALES}
+    nombres = sorted({m.strip().upper() for m in dto.magistrados if m.strip()})
+
+    registros_actuales = session.exec(select(MagistradoOficial)).all()
+    for registro in registros_actuales:
+        session.delete(registro)
+
+    for nombre in nombres:
+        session.add(MagistradoOficial(nombre=nombre))
+
+    session.commit()
+
+    return {"status": "ok", "magistrados": nombres}

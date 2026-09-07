@@ -25,10 +25,11 @@ def obtener_comparativa_endpoint(
     hasta_b: Optional[str] = Query(None),
     ponente_b: Optional[str] = Query("General"),
     tipo_b: Optional[str] = Query("todos"),
+    carga_id: Optional[int] = Query(None),
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    df, meta_db = cargar_dataframe_desde_db(session)
+    df, meta_db = cargar_dataframe_desde_db(session, carga_id)
 
     if df is None or df.empty:
         raise HTTPException(
