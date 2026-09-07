@@ -26,12 +26,22 @@ def create_db_and_tables():
             session.commit()
 
 def _migrar_columnas_faltantes():
-    """Agrega columnas nuevas a tablas ya existentes (SQLite no soporta ALTER en create_all)."""
+    """Agrega columnas nuevas a tablas ya existentes compatible con SQLite y PostgreSQL."""
+    is_postgres = "postgresql" in engine.dialect.name.lower()
+
     with engine.connect() as conexion:
-        columnas = [fila[1] for fila in conexion.exec_driver_sql("PRAGMA table_info(cargaexcel)").fetchall()]
+        # Inspección de columnas por motor
+        if is_postgres:
+            query_cols = "SELECT column_name FROM information_schema.columns WHERE table_name = 'cargaexcel'"
+            columnas = [fila[0] for fila in conexion.exec_driver_sql(query_cols).fetchall()]
+        else:
+            columnas = [fila[1] for fila in conexion.exec_driver_sql("PRAGMA table_info(cargaexcel)").fetchall()]
+
+        # Alter table según el motor
         if "es_global" not in columnas:
+            default_val = "FALSE" if is_postgres else "0"
             conexion.exec_driver_sql(
-                "ALTER TABLE cargaexcel ADD COLUMN es_global BOOLEAN DEFAULT 0"
+                f"ALTER TABLE cargaexcel ADD COLUMN es_global BOOLEAN DEFAULT {default_val}"
             )
             conexion.commit()
 
