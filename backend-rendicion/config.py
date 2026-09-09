@@ -30,4 +30,4 @@ CORS_ORIGINS_STR = os.getenv(
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_STR.split(",")]
 
 # ─── BASE DE DATOS ─────────────────────────────────────────────────────────
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:0420@localhost:5432/rendicion_db")
