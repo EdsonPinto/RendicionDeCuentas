@@ -1,0 +1,10 @@
+/* frontend-rendicion/src/styles/App.css */
+
+@import "./globals.css";
+@import "./Navbar.css";
+@import "./AppTabs.css";
+@import "./LoginView.css";
+@import "./Dashboard.css";
+@import "./GlobalFilters.css";
+@import "./ComparativaView.css";
+@import "./CuelloBotellaView.css";

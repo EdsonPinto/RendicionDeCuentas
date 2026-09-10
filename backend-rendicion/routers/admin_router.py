@@ -1,15 +1,18 @@
 from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlmodel import Session, select, delete
 
 from auth import hash_password, obtener_usuario_actual, verificar_admin
 from database import get_session
 from models import MagistradoOficial
 from models import Usuario as UsuarioDB
-from schemas import ListaMagistradosDTO, Usuario, UsuarioCreateDTO, UsuarioUpdateDTO
+from schemas import Usuario, UsuarioCreateDTO, UsuarioUpdateDTO
 
 router = APIRouter()
+
+class ListaMagistradosDTO(BaseModel):
+    magistrados: List[str]
 
 
 MAGISTRADOS_OFICIALES_DEFECTO = [
@@ -146,7 +149,6 @@ def listar_magistrados(
     ).all()
 
     if not registros:
-        # Semilla inicial: si la tabla está vacía, se usa el catálogo por defecto
         for nombre in MAGISTRADOS_OFICIALES_DEFECTO:
             session.add(MagistradoOficial(nombre=nombre))
         session.commit()
@@ -160,18 +162,27 @@ def listar_magistrados(
 @router.post("/api/admin/magistrados")
 def guardar_magistrados(
     dto: ListaMagistradosDTO,
-    admin: Usuario = Depends(verificar_admin),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    nombres = sorted({m.strip().upper() for m in dto.magistrados if m.strip()})
+    try:
+        # 1. Limpiar lista de duplicados y vacíos
+        nombres = sorted({m.strip().upper() for m in dto.magistrados if m and m.strip()})
 
-    registros_actuales = session.exec(select(MagistradoOficial)).all()
-    for registro in registros_actuales:
-        session.delete(registro)
+        # 2. Borrar registros previos de forma atómica en SQL
+        session.exec(delete(MagistradoOficial))
 
-    for nombre in nombres:
-        session.add(MagistradoOficial(nombre=nombre))
+        # 3. Insertar nuevos magistrados
+        for nombre in nombres:
+            session.add(MagistradoOficial(nombre=nombre))
 
-    session.commit()
+        session.commit()
 
-    return {"status": "ok", "magistrados": nombres}
+        return {"status": "ok", "magistrados": nombres}
+    except Exception as e:
+        session.rollback()
+        print(f"ERROR DETALLADO EN POST /api/admin/magistrados: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al sincronizar magistrados: {str(e)}"
+        )

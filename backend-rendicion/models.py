@@ -1,6 +1,6 @@
-from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from datetime import datetime
+from sqlmodel import SQLModel, Field, Relationship
 
 class Usuario(SQLModel, table=True):
     __tablename__ = "usuario"
@@ -9,8 +9,9 @@ class Usuario(SQLModel, table=True):
     nombre: str
     email: str = Field(unique=True, index=True)
     password_hash: str
-    rol: str
+    rol: str  # "admin" o "usuario"
 
+    # Relación uno-a-muchos con la tabla de cargas
     cargas: List["CargaExcel"] = Relationship(back_populates="usuario")
 
 
@@ -22,8 +23,13 @@ class CargaExcel(SQLModel, table=True):
     fecha_carga: datetime = Field(default_factory=datetime.utcnow)
     es_global: bool = Field(default=False)
 
-    usuario_id: int = Field(foreign_key="usuario.id")
+    # Clave foránea que enlaza la carga con el usuario
+    usuario_id: int = Field(foreign_key="usuario.id", index=True)
     usuario: Usuario = Relationship(back_populates="cargas")
+
+    # Relación con los datos procesales extraídos
+    datos_procesales: List["DatoProcesal"] = Relationship(back_populates="carga")
+
 
 class MagistradoOficial(SQLModel, table=True):
     __tablename__ = "magistradooficial"
@@ -56,6 +62,7 @@ class MapeoDinamico(SQLModel, table=True):
         index=True,
     )
 
+
 class DatoProcesal(SQLModel, table=True):
     __tablename__ = "datoprocesal"
 
@@ -87,6 +94,7 @@ class DatoProcesal(SQLModel, table=True):
         foreign_key="cargaexcel.id",
         index=True,
     )
+    carga: Optional[CargaExcel] = Relationship(back_populates="datos_procesales")
 
     # Conserva columnas adicionales del Excel
     datos_extra: Optional[str] = Field(default=None)

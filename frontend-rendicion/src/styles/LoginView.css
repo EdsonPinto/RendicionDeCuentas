@@ -1,0 +1,99 @@
+.login-container {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f5f9;
+}
+
+.login-card {
+  background-color: #ffffff !important;
+  border: var(--border-thick) solid var(--main-black);
+  border-radius: 16px;
+  padding: 35px 30px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-neo-lg);
+}
+
+.login-card h2 {
+  color: #000000 !important;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-card label {
+  color: #000000 !important;
+  font-weight: 900;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.login-field-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #ffffff !important;
+  border: 2px solid #000000;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+}
+
+.login-field-box input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  width: 100%;
+  font-weight: 800;
+  color: #000000 !important;
+  font-size: 0.95rem;
+}
+
+.login-field-box input:-webkit-autofill,
+.login-field-box input:-webkit-autofill:hover,
+.login-field-box input:-webkit-autofill:focus,
+.login-field-box input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.login-field-box svg {
+  color: #000000 !important;
+  flex-shrink: 0;
+}
+
+.btn-login-submit {
+  width: 100%;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #000000;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 #3b82f6;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+  margin-top: 10px;
+}
+
+.btn-login-submit:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #3b82f6;
+}
+
+.btn-login-submit:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 #3b82f6;
+}

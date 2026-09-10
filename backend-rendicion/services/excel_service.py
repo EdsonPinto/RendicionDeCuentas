@@ -336,3 +336,22 @@ def listar_documentos(session: Session, usuario_actual_id: int):
         )
 
     return resultado
+
+def obtener_excel_por_usuario(db: Session, user):
+    # Si es admin, retorna todos los Excel
+    if user.rol == "admin":
+        return db.query(models.DocumentoExcel).all()
+    
+    # Si es usuario normal, retorna los cargados por él O por el admin
+    return db.query(models.DocumentoExcel).filter(
+        (models.DocumentoExcel.user_id == user.id) | 
+        (models.DocumentoExcel.usuario.has(rol="admin"))
+    ).all()
+
+def eliminar_excel(db: Session, excel_id: int):
+    excel = db.query(models.DocumentoExcel).filter(models.DocumentoExcel.id == excel_id).first()
+    if excel:
+        db.delete(excel)
+        db.commit()
+        return True
+    return False

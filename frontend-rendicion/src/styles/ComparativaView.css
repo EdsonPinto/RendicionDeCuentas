@@ -1,0 +1,139 @@
+comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mode-btn {
+  padding: 0.6rem 1.2rem;
+  border: var(--border-thick) solid var(--main-black);
+  border-radius: 8px;
+  background: var(--white) !important;
+  color: #000000 !important;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--main-black);
+  transition: all 0.15s ease;
+}
+
+.mode-btn.active {
+  background: var(--primary) !important;
+  color: var(--white) !important;
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
+
+.comp-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.comp-box {
+  background: var(--white);
+  padding: 1.2rem;
+  border: var(--border-thick) solid var(--main-black);
+  border-radius: 12px;
+  box-shadow: var(--shadow-neo);
+}
+
+.comp-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.comp-inputs input,
+.comp-box select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid var(--main-black);
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  background: var(--white) !important;
+  color: #000000 !important;
+}
+
+.vs-badge {
+  background: var(--main-black);
+  color: var(--white) !important;
+  font-weight: 900;
+  padding: 0.6rem 0.9rem;
+  border-radius: 50%;
+  text-align: center;
+  box-shadow: 2px 2px 0 var(--main-black);
+}
+
+.comp-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.comp-card {
+  background: var(--white);
+  padding: 1.25rem;
+  border: var(--border-thick) solid var(--main-black);
+  border-radius: 12px;
+  box-shadow: var(--shadow-neo);
+  color: #000000 !important;
+}
+
+.comp-values {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.3rem;
+  font-weight: 900;
+  margin: 0.75rem 0;
+  color: #000000 !important;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 900;
+  font-size: 0.8rem;
+  border: 2px solid var(--main-black);
+}
+
+.badge.pos {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+}
+.badge.neg {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+}
+
+@media (max-width: 1024px) {
+  .comp-cards-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+  .comp-controls-grid {
+    grid-template-columns: 1fr;
+  }
+  .vs-badge {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .comp-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}

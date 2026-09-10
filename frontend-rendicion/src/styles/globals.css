@@ -1,0 +1,41 @@
+/* frontend-rendicion/src/styles/globals.css */
+:root {
+  --primary: #3b82f6;
+  --primary-light: #93c5fd;
+  --secondary: #8b5cf6;
+  --secondary-light: #c4b5fd;
+  --danger: #ef4444;
+  --danger-light: #fca5a5;
+  --warning: #ea580c;
+  --warning-light: #ffedd5;
+  --success: #22c55e;
+  --bg: #f8fafc; /* Fondo general claro (puedes cambiarlo a #ffffff si lo quieres totalmente blanco) */
+  --white: #ffffff;
+  --main-black: #000000;
+  --border-thick: 3px;
+  --shadow-neo: 4px 4px 0px #000000;
+  --shadow-neo-lg: 8px 8px 0px #000000;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    "Public Sans",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    Roboto,
+    sans-serif;
+  background-color: var(--bg) !important; /* Forzar el fondo claro */
+  color: var(--main-black) !important;
+}
+
+.app-container {
+  background-color: var(--bg) !important;
+  min-height: 100vh;
+}
