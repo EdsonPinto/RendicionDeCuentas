@@ -1,5 +1,5 @@
 import React from "react";
-import { Layers, Users } from "lucide-react";
+import { Layers, Users, FileSpreadsheet } from "lucide-react";
 
 export function AppTabs({ activeTab, setActiveTab, isAdmin }) {
   return (
@@ -43,6 +43,19 @@ export function AppTabs({ activeTab, setActiveTab, isAdmin }) {
       >
         🚨 CUELLO DE BOTELLA
       </button>
+
+      {!isAdmin && (
+        <button
+          className={activeTab === "mis_excels" ? "tab active" : "tab"}
+          onClick={() => setActiveTab("mis_excels")}
+        >
+          <FileSpreadsheet
+            size={16}
+            style={{ display: "inline", marginRight: "6px" }}
+          />{" "}
+          MIS EXCELES
+        </button>
+      )}
     </div>
   );
 }

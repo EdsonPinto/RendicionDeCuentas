@@ -17,11 +17,11 @@ export const AdminCrudView = ({
   magistradosList,
   handleDeleteMagistrado,
   handleVincularMagistrado,
+  selectedExcelId,
   onExcelDeleted,
   onExcelSelected,
 }) => {
   const [misExcels, setMisExcels] = useState([]);
-  const [selectedExcelId, setSelectedExcelId] = useState(null);
   const [cargandoExcels, setCargandoExcels] = useState(false);
 
   const fetchMisExcels = async () => {
@@ -44,16 +44,9 @@ export const AdminCrudView = ({
 
   useEffect(() => {
     fetchMisExcels();
-    const savedExcelId = localStorage.getItem("selected_excel_id");
-    if (savedExcelId) {
-      setSelectedExcelId(Number(savedExcelId));
-    }
   }, [token]);
 
   const handleSelectExcel = async (file) => {
-    setSelectedExcelId(file.id);
-    localStorage.setItem("selected_excel_id", file.id);
-
     try {
       const res = await fetch(
         `http://localhost:8000/api/excel/cargar-seleccionado/${file.id}`,
@@ -92,8 +85,6 @@ export const AdminCrudView = ({
       if (res.ok) {
         setMisExcels(misExcels.filter((item) => item.id !== excelId));
         if (selectedExcelId === excelId) {
-          setSelectedExcelId(null);
-          localStorage.removeItem("selected_excel_id");
           if (onExcelSelected) onExcelSelected(null);
         }
         if (onExcelDeleted) onExcelDeleted();
@@ -106,6 +97,10 @@ export const AdminCrudView = ({
       alert(`Error de conexión al eliminar: ${err.message}`);
     }
   };
+
+  const usuariosNombresVinculados = new Set(
+    usuariosList.map((u) => u.nombre.trim().toUpperCase()),
+  );
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -121,7 +116,6 @@ export const AdminCrudView = ({
         PANEL DE ADMINISTRACIÓN Y GESTIÓN
       </h2>
 
-      {/* Sección Superior: Usuarios y Magistrados */}
       <div
         style={{
           display: "grid",
@@ -130,7 +124,6 @@ export const AdminCrudView = ({
           marginBottom: "30px",
         }}
       >
-        {/* Columna 1: Formulario y Tabla de Usuarios */}
         <div
           style={{
             background: "#fff",
@@ -236,7 +229,6 @@ export const AdminCrudView = ({
             </button>
           </form>
 
-          {/* Listado de Usuarios Registrados */}
           <h4
             style={{
               fontWeight: "bold",
@@ -307,7 +299,6 @@ export const AdminCrudView = ({
           </div>
         </div>
 
-        {/* Columna 2: Catálogo de Magistrados */}
         <div
           style={{
             background: "#fff",
@@ -364,56 +355,83 @@ export const AdminCrudView = ({
               borderRadius: "4px",
             }}
           >
-            {magistradosList.map((mag, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px",
-                  borderBottom: "1px solid #eee",
-                }}
-              >
-                <span style={{ fontSize: "13px", fontWeight: "bold" }}>
-                  {mag}
-                </span>
-                <div style={{ display: "flex", gap: "5px" }}>
-                  <button
-                    onClick={() => handleVincularMagistrado(mag)}
+            {magistradosList.map((mag, idx) => {
+              const yaVinculado = usuariosNombresVinculados.has(
+                mag.trim().toUpperCase(),
+              );
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "8px",
+                    borderBottom: "1px solid #eee",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", fontWeight: "bold" }}>
+                    {mag}
+                  </span>
+                  <div
                     style={{
-                      padding: "2px 8px",
-                      border: "1px solid black",
-                      background: "#eff6ff",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      borderRadius: "3px",
+                      display: "flex",
+                      gap: "5px",
+                      alignItems: "center",
                     }}
                   >
-                    Vincular
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMagistrado(mag)}
-                    style={{
-                      padding: "2px 8px",
-                      border: "1px solid black",
-                      color: "red",
-                      background: "#fef2f2",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      borderRadius: "3px",
-                    }}
-                  >
-                    Eliminar
-                  </button>
+                    {yaVinculado ? (
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          border: "1px solid #16a34a",
+                          background: "#f0fdf4",
+                          color: "#16a34a",
+                          fontSize: "12px",
+                          borderRadius: "3px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ✓ Vinculado
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleVincularMagistrado(mag)}
+                        style={{
+                          padding: "2px 8px",
+                          border: "1px solid black",
+                          background: "#eff6ff",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        Vincular
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteMagistrado(mag)}
+                      style={{
+                        padding: "2px 8px",
+                        border: "1px solid black",
+                        color: "red",
+                        background: "#fef2f2",
+                        fontSize: "12px",
+                        cursor: "pointer",
+                        borderRadius: "3px",
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Sección Inferior: Recuadro de Gestión y Visualización de Archivos Excel */}
       <div
         style={{
           background: "#fff",
@@ -497,6 +515,20 @@ export const AdminCrudView = ({
                   <small style={{ fontSize: "11px", color: "#666" }}>
                     Cargado: {new Date(file.fecha_carga).toLocaleDateString()}
                   </small>
+                  {userProfile?.rol === "admin" && (
+                    <small
+                      style={{
+                        display: "block",
+                        fontSize: "11px",
+                        color: "#3b82f6",
+                        fontWeight: "bold",
+                        marginTop: "2px",
+                      }}
+                    >
+                      Subido por: {file.usuario_nombre}
+                      {file.es_global ? " (Institucional)" : " (Privado)"}
+                    </small>
+                  )}
                 </div>
 
                 <div

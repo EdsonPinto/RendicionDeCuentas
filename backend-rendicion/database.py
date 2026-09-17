@@ -10,7 +10,6 @@ def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
     _migrar_columnas_faltantes()
 
-    # Crear usuario admin por defecto si no existe
     with Session(engine) as session:
         usuario = session.exec(
             select(Usuario).where(Usuario.email == "admin@palacio.gov.co")
@@ -30,18 +29,28 @@ def _migrar_columnas_faltantes():
     is_postgres = "postgresql" in engine.dialect.name.lower()
 
     with engine.connect() as conexion:
-        # Inspección de columnas por motor
         if is_postgres:
             query_cols = "SELECT column_name FROM information_schema.columns WHERE table_name = 'cargaexcel'"
             columnas = [fila[0] for fila in conexion.exec_driver_sql(query_cols).fetchall()]
         else:
             columnas = [fila[1] for fila in conexion.exec_driver_sql("PRAGMA table_info(cargaexcel)").fetchall()]
 
-        # Alter table según el motor
         if "es_global" not in columnas:
             default_val = "FALSE" if is_postgres else "0"
             conexion.exec_driver_sql(
                 f"ALTER TABLE cargaexcel ADD COLUMN es_global BOOLEAN DEFAULT {default_val}"
+            )
+            conexion.commit()
+
+        if "ruta_archivo" not in columnas:
+            conexion.exec_driver_sql(
+                "ALTER TABLE cargaexcel ADD COLUMN ruta_archivo VARCHAR"
+            )
+            conexion.commit()
+
+        if "hash_archivo" not in columnas:
+            conexion.exec_driver_sql(
+                "ALTER TABLE cargaexcel ADD COLUMN hash_archivo VARCHAR"
             )
             conexion.commit()
 

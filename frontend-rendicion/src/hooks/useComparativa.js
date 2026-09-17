@@ -1,17 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 
-/**
- * Estado y fetch del módulo de comparativas.
- * `active` reemplaza la condición original
- * (activeTab === "comparativa" && compSubTab === "metricas"),
- * ya que compSubTab siempre era la constante "metricas".
- */
 export function useComparativa(
   API_URL,
   token,
   data,
   view,
   subViewMode,
+  selectedExcelId,
   { setLoading, active },
 ) {
   const [compMode, setCompMode] = useState("periodo");
@@ -31,7 +26,7 @@ export function useComparativa(
     if (!token || !data) return;
     setLoading(true);
     try {
-      const query = new URLSearchParams({
+      const params = new URLSearchParams({
         modo: compMode,
         desde_a: compFilters.desde_a,
         hasta_a: compFilters.hasta_a,
@@ -41,11 +36,15 @@ export function useComparativa(
         hasta_b: compFilters.hasta_b,
         ponente_b: compMode === "magistrado" ? compFilters.ponente_b : view,
         tipo_b: compMode === "magistrado" ? compFilters.tipo_b : subViewMode,
-      }).toString();
-
-      const res = await fetch(`${API_URL}/api/comparativa?${query}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
+      if (selectedExcelId) params.set("carga_id", selectedExcelId);
+
+      const res = await fetch(
+        `${API_URL}/api/comparativa?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         setCompData(await res.json());
       }
@@ -54,7 +53,17 @@ export function useComparativa(
     } finally {
       setLoading(false);
     }
-  }, [token, data, compMode, compFilters, view, subViewMode, API_URL, setLoading]);
+  }, [
+    token,
+    data,
+    compMode,
+    compFilters,
+    view,
+    subViewMode,
+    selectedExcelId,
+    API_URL,
+    setLoading,
+  ]);
 
   useEffect(() => {
     if (active) {

@@ -15,7 +15,7 @@ const formatNumber = (value, maximumFractionDigits = 0) =>
 const formatDays = (value) => `${formatNumber(value, 1)} días`;
 const formatPercentage = (value) => `${formatNumber(value, 2)}%`;
 
-export function CuelloBotellaView({ token }) {
+export function CuelloBotellaView({ token, cargaId }) {
   const [datos, setDatos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,10 +29,17 @@ export function CuelloBotellaView({ token }) {
     try {
       setLoading(true);
       setError(null);
-      const respuesta = await fetch(`${API_URL}/api/cuello-botella`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const params = new URLSearchParams();
+      if (cargaId) params.set("carga_id", cargaId);
+
+      const respuesta = await fetch(
+        `${API_URL}/api/cuello-botella?${params.toString()}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
       if (!respuesta.ok) {
         const errorData = await respuesta.json().catch(() => ({}));
         throw new Error(
@@ -40,7 +47,15 @@ export function CuelloBotellaView({ token }) {
             `Error al consultar cuello de botella (${respuesta.status})`,
         );
       }
-      setDatos(await respuesta.json());
+
+      const resultado = await respuesta.json();
+
+      if (resultado.sin_datos) {
+        setDatos(null);
+        return;
+      }
+
+      setDatos(resultado);
     } catch (err) {
       console.error("Error al cargar cuello de botella:", err);
       setError(err.message || "No se pudieron cargar los datos.");
@@ -51,7 +66,7 @@ export function CuelloBotellaView({ token }) {
 
   useEffect(() => {
     cargarCuelloBotella();
-  }, [token]);
+  }, [token, cargaId]);
 
   if (loading)
     return (

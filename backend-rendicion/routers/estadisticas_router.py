@@ -19,7 +19,7 @@ def obtener_estadisticas(
     usuario_actual: UsuarioSchema = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    df, meta_db = cargar_dataframe_desde_db(session, carga_id)
+    df, meta_db = cargar_dataframe_desde_db(session, carga_id, usuario_actual)
 
     if df is not None:
         app_state.meta = meta_db.copy()

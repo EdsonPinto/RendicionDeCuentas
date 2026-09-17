@@ -18,13 +18,10 @@ def obtener_cuellos_botella_endpoint(
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    df, meta_db = cargar_dataframe_desde_db(session, carga_id)
+    df, meta_db = cargar_dataframe_desde_db(session, carga_id, usuario_actual)
 
     if df is None or df.empty:
-        raise HTTPException(
-            status_code=400,
-            detail="No hay datos cargados en el sistema.",
-        )
+        return {"sin_datos": True}
 
     col_ent = meta_db.get("col_ent")
     col_vigente = meta_db.get("col_vigente")

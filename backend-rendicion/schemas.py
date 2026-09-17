@@ -1,5 +1,5 @@
 from typing import List, Optional
-
+from datetime import datetime
 from pydantic import BaseModel
 
 
@@ -42,6 +42,21 @@ class DocumentoExcelCreate(DocumentoExcelBase):
 class DocumentoExcelResponse(DocumentoExcelBase):
     id: int
     user_id: int
+
+    class Config:
+        from_attributes = True
+
+
+# DTO para la gestión de Exceles por Usuario
+class CargaExcelResponse(BaseModel):
+    id: int
+    nombre_archivo: str
+    fecha_carga: datetime
+    es_global: bool
+    usuario_id: int
+    usuario_nombre: Optional[str] = "Desconocido"
+    es_propietario: bool = False
+    total_registros: int = 0
 
     class Config:
         from_attributes = True

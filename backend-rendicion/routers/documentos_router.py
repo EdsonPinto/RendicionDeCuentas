@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from auth import obtener_usuario_actual
 from database import get_session
-from models import CargaExcel, DatoProcesal
 from schemas import UsuarioAutenticado
-from services.excel_service import listar_documentos
+from services.excel_service import obtener_excel_por_usuario, eliminar_excel
 
 router = APIRouter()
 
@@ -15,7 +14,7 @@ def obtener_documentos(
     usuario_actual: UsuarioAutenticado = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    return {"documentos": listar_documentos(session, usuario_actual.id)}
+    return {"documentos": obtener_excel_por_usuario(session, usuario_actual)}
 
 
 @router.delete("/api/documentos/{carga_id}")
@@ -24,27 +23,9 @@ def eliminar_documento(
     usuario_actual: UsuarioAutenticado = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    carga = session.get(CargaExcel, carga_id)
+    eliminado = eliminar_excel(session, carga_id, usuario_actual)
 
-    if not carga:
+    if not eliminado:
         raise HTTPException(status_code=404, detail="Documento no encontrado.")
 
-    es_propietario = carga.usuario_id == usuario_actual.id
-    es_admin = usuario_actual.rol == "admin"
-
-    if not es_propietario and not es_admin:
-        raise HTTPException(
-            status_code=403,
-            detail="Solo puedes eliminar documentos que tú mismo hayas cargado.",
-        )
-
-    registros = session.exec(
-        select(DatoProcesal).where(DatoProcesal.carga_id == carga_id)
-    ).all()
-    for registro in registros:
-        session.delete(registro)
-
-    session.delete(carga)
-    session.commit()
-
-    return {"status": "ok", "mensaje": f"Documento '{carga.nombre_archivo}' eliminado."}
+    return {"status": "ok", "mensaje": "Documento eliminado."}

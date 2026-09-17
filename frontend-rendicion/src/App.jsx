@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import {
   ShieldCheck,
   FileUp,
@@ -11,7 +17,6 @@ import {
 import "./styles/globals.css";
 import "./styles/App.css";
 
-// Importación de Vistas y Componentes modularizados
 import { LoginView } from "./components/LoginView";
 import { ProcesoModal } from "./components/ProcesoModal";
 import { GestionView } from "./components/GestionView";
@@ -19,6 +24,7 @@ import { AnalisisView } from "./components/AnalisisView";
 import { ComparativaView } from "./components/ComparativaView";
 import { AdminCrudView } from "./components/AdminCrudView";
 import { CuelloBotellaView } from "./components/CuelloBotellaView";
+import { GestionExcelesView } from "./components/GestionExcelesView";
 import { AppTabs } from "./components/AppTabs";
 import { GlobalFilters } from "./components/GlobalFilters";
 import { derivarMagistrados } from "./utils/ponentes";
@@ -52,17 +58,20 @@ function App() {
   const [activeTab, setActiveTab] = useState("gestion");
   const [dates, setDates] = useState({ desde: "", hasta: "" });
 
-  // ESTADOS FILTROS Y BÚSQUEDA
   const [searchEntidadFiltro, setSearchEntidadFiltro] = useState("");
   const [searchRadicadoFiltro, setSearchRadicadoFiltro] = useState("");
   const [filterSinSalidaOnly, setFilterSinSalidaOnly] = useState(false);
   const [limitVigentes, setLimitVigentes] = useState(50);
 
-  // ESTADO PARA MODAL DE DETALLE DE PROCESO
   const [selectedProceso, setSelectedProceso] = useState(null);
-
-  // ESTADO PARA FORZAR RECARGA DE EXCEL EN COMPONENTE HIJO
   const [refreshExcelKey, setRefreshExcelKey] = useState(0);
+
+  // Excel activo del usuario: se comparte entre Gestión, Análisis,
+  // Comparativas, Cuello de Botella y Exportar. Se persiste en localStorage.
+  const [selectedExcelId, setSelectedExcelId] = useState(() => {
+    const saved = localStorage.getItem("selected_excel_id");
+    return saved ? Number(saved) : null;
+  });
 
   const {
     usuariosList,
@@ -83,27 +92,23 @@ function App() {
     syncMagistradosCatalog,
   } = useAdminCrud(API_URL, token, { setLoading });
 
-  const {
-    compMode,
-    setCompMode,
-    compFilters,
-    setCompFilters,
-    compData,
-  } = useComparativa(API_URL, token, data, view, subViewMode, {
-    setLoading,
-    active: activeTab === "comparativa",
-  });
-
-  const syncedCatalogKeysRef = useRef(new Set());
-  const inFlightCatalogKeysRef = useRef(new Set());
-
   const fetchStats = useCallback(
-    async (d = dates.desde, h = dates.hasta, currentToken = token) => {
+    async (
+      d = dates.desde,
+      h = dates.hasta,
+      currentToken = token,
+      cargaId = selectedExcelId,
+    ) => {
       if (!currentToken) return;
       try {
+        const params = new URLSearchParams({ desde: d || "", hasta: h || "" });
+        if (cargaId) params.set("carga_id", cargaId);
+
         const res = await fetch(
-          `${API_URL}/api/estadisticas?desde=${d}&hasta=${h}`,
-          { headers: { Authorization: `Bearer ${currentToken}` } },
+          `${API_URL}/api/estadisticas?${params.toString()}`,
+          {
+            headers: { Authorization: `Bearer ${currentToken}` },
+          },
         );
         if (res.status === 401) {
           handleLogout();
@@ -113,14 +118,25 @@ function App() {
           const result = await res.json();
           if (!result.error) {
             setData(result);
+          } else {
+            setData(null);
           }
         }
       } catch (err) {
         console.error("Error obteniendo estadísticas:", err);
       }
     },
-    [dates.desde, dates.hasta, token, handleLogout],
+    [dates.desde, dates.hasta, token, selectedExcelId, handleLogout],
   );
+
+  const { compMode, setCompMode, compFilters, setCompFilters, compData } =
+    useComparativa(API_URL, token, data, view, subViewMode, selectedExcelId, {
+      setLoading,
+      active: activeTab === "comparativa",
+    });
+
+  const syncedCatalogKeysRef = useRef(new Set());
+  const inFlightCatalogKeysRef = useRef(new Set());
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -137,9 +153,12 @@ function App() {
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
-      if (!res.ok) throw new Error(`Error al subir: ${res.status}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Error al subir: ${res.status}`);
+      }
 
-      await fetchStats(dates.desde, dates.hasta, token);
+      await fetchStats(dates.desde, dates.hasta, token, selectedExcelId);
       setRefreshExcelKey((prev) => prev + 1);
       setActiveTab("gestion");
     } catch (err) {
@@ -149,7 +168,27 @@ function App() {
     }
   };
 
+  // Se comparte entre AdminCrudView y GestionExcelesView: al hacer clic
+  // sobre cualquier tarjeta de Excel (propio o institucional), este se
+  // vuelve el "Excel activo" para todos los módulos de análisis.
+  const handleExcelSelected = useCallback(
+    (selectedData) => {
+      if (selectedData) {
+        setSelectedExcelId(selectedData.carga_id);
+        localStorage.setItem("selected_excel_id", selectedData.carga_id);
+        fetchStats(dates.desde, dates.hasta, token, selectedData.carga_id);
+        setActiveTab("gestion");
+      } else {
+        setSelectedExcelId(null);
+        localStorage.removeItem("selected_excel_id");
+        setData(null);
+      }
+    },
+    [fetchStats, dates.desde, dates.hasta, token],
+  );
+
   const handleExcelDeletedCleanup = () => {
+    setSelectedExcelId(null);
     setData(null);
     localStorage.removeItem("selected_excel_id");
   };
@@ -158,9 +197,18 @@ function App() {
     if (!token) return;
     setLoading(true);
     try {
+      const params = new URLSearchParams({
+        desde: dates.desde || "",
+        hasta: dates.hasta || "",
+        ponente: view,
+      });
+      if (selectedExcelId) params.set("carga_id", selectedExcelId);
+
       const res = await fetch(
-        `${API_URL}/api/exportar-excel?desde=${dates.desde}&hasta=${dates.hasta}&ponente=${view}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        `${API_URL}/api/exportar-excel?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
       if (!res.ok) throw new Error("Error al generar Excel.");
       const blob = await res.blob();
@@ -178,7 +226,6 @@ function App() {
     }
   };
 
-  // Carga perfil + estadísticas al iniciar sesión / cambiar token o fechas.
   useEffect(() => {
     if (token) {
       fetchUserProfile(token, {
@@ -186,14 +233,13 @@ function App() {
           setActiveTab("admin_crud");
           fetchAdminData(token);
         },
-        onUser: () => setActiveTab("gestion"),
+        onUser: () => setActiveTab("mis_excels"),
       });
-      fetchStats(dates.desde, dates.hasta, token);
+      fetchStats(dates.desde, dates.hasta, token, selectedExcelId);
     }
-  }, [token, fetchUserProfile, fetchAdminData, fetchStats, dates.desde, dates.hasta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-  // Sincroniza el catálogo de magistrados derivado del Excel cargado
-  // (solo para admin), evitando duplicar sincronizaciones ya hechas.
   useEffect(() => {
     if (userProfile?.rol !== "admin" || !data?.lista_ponentes?.length) return;
     const catalogoDerivado = derivarMagistrados(data.lista_ponentes);
@@ -249,7 +295,8 @@ function App() {
         return keyCambio ? data.ponentes[keyCambio] : null;
       }
 
-      if (keysMatching.length === 1) return data.ponentes[keysMatching[0]] || null;
+      if (keysMatching.length === 1)
+        return data.ponentes[keysMatching[0]] || null;
 
       return fusionarMetricasPonente(
         data.ponentes[keysMatching[0]],
@@ -463,15 +510,9 @@ function App() {
             magistradosList={magistradosList}
             handleDeleteMagistrado={handleDeleteMagistrado}
             handleVincularMagistrado={handleVincularMagistrado}
+            selectedExcelId={selectedExcelId}
             onExcelDeleted={handleExcelDeletedCleanup}
-            onExcelSelected={(selectedData) => {
-              if (selectedData) {
-                fetchStats(dates.desde, dates.hasta, token);
-                setActiveTab("gestion");
-              } else {
-                setData(null);
-              }
-            }}
+            onExcelSelected={handleExcelSelected}
           />
         )}
 
@@ -490,7 +531,9 @@ function App() {
 
         {cur && activeTab === "gestion" && <GestionView cur={cur} />}
 
-        {activeTab === "cuello_botella" && <CuelloBotellaView token={token} />}
+        {activeTab === "cuello_botella" && (
+          <CuelloBotellaView token={token} cargaId={selectedExcelId} />
+        )}
 
         {cur && activeTab === "analisis" && (
           <AnalisisView
@@ -508,11 +551,21 @@ function App() {
           />
         )}
 
+        {activeTab === "mis_excels" && (
+          <GestionExcelesView
+            token={token}
+            onLogout={handleLogout}
+            selectedExcelId={selectedExcelId}
+            onExcelSelected={handleExcelSelected}
+          />
+        )}
+
         {!cur &&
           !loading &&
           activeTab !== "admin_crud" &&
           activeTab !== "comparativa" &&
-          activeTab !== "cuello_botella" && (
+          activeTab !== "cuello_botella" &&
+          activeTab !== "mis_excels" && (
             <div className="welcome-screen">
               <Database size={100} color="#cbd5e1" />
               <h2>Esperando Base de Datos</h2>

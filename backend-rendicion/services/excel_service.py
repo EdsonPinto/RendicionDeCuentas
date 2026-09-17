@@ -1,12 +1,31 @@
 import io
+import os
 import json
-
+import uuid
+import hashlib
 import pandas as pd
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
+from fastapi import HTTPException, status
 
 from models import CargaExcel, DatoProcesal, Usuario
 from services.clasificacion_service import aplicar_categorizacion, normalizar
 from services.mapeo_service import obtener_mapeos_dinamicos
+
+UPLOAD_DIR = "uploads_excel"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _tiene_acceso(carga: CargaExcel, usuario_actual) -> bool:
+    """Regla central de privacidad, compartida por todos los módulos que leen un Excel."""
+    if usuario_actual is None:
+        return True
+    if carga.es_global:
+        return True
+    if carga.usuario_id == usuario_actual.id:
+        return True
+    if getattr(usuario_actual, "rol", None) == "admin":
+        return True
+    return False
 
 
 def obtener_df_desde_bd(session: Session):
@@ -39,11 +58,38 @@ def obtener_df_desde_bd(session: Session):
     return pd.DataFrame(datos)
 
 
-def cargar_dataframe_desde_db(session: Session, carga_id: int = None):
+def cargar_dataframe_desde_db(session: Session, carga_id: int = None, usuario_actual=None):
+    """
+    Resuelve qué CargaExcel usar:
+    - Si viene carga_id y el usuario tiene acceso a esa carga, se usa esa.
+    - Si viene carga_id pero el usuario NO tiene acceso, se ignora (no se filtra
+      información ajena) y se aplica el comportamiento por defecto de abajo.
+    - Sin carga_id: un usuario normal ve su propia carga más reciente, o si no
+      tiene ninguna, la institucional más reciente. Un admin (o llamadas internas
+      sin usuario) ve la carga más reciente del sistema.
+    """
+    carga = None
+
     if carga_id is not None:
-        carga = session.get(CargaExcel, carga_id)
-    else:
-        carga = session.exec(select(CargaExcel).order_by(CargaExcel.id.desc())).first()
+        candidata = session.get(CargaExcel, carga_id)
+        if candidata and _tiene_acceso(candidata, usuario_actual):
+            carga = candidata
+
+    if carga is None:
+        if usuario_actual is not None and getattr(usuario_actual, "rol", None) != "admin":
+            carga = session.exec(
+                select(CargaExcel)
+                .where(CargaExcel.usuario_id == usuario_actual.id)
+                .order_by(CargaExcel.id.desc())
+            ).first()
+            if not carga:
+                carga = session.exec(
+                    select(CargaExcel)
+                    .where(CargaExcel.es_global == True)
+                    .order_by(CargaExcel.id.desc())
+                ).first()
+        else:
+            carga = session.exec(select(CargaExcel).order_by(CargaExcel.id.desc())).first()
 
     if not carga:
         return None, {}
@@ -182,6 +228,24 @@ def procesar_archivo_excel(
     session: Session,
     es_global: bool = False,
 ):
+    # Verificación de duplicados por contenido, ANTES de procesar nada más
+    hash_valor = hashlib.sha256(content).hexdigest()
+    existente = session.exec(
+        select(CargaExcel).where(CargaExcel.hash_archivo == hash_valor)
+    ).first()
+
+    if existente:
+        if existente.es_global:
+            origen = "por el administrador (archivo institucional)"
+        else:
+            propietario_existente = session.get(Usuario, existente.usuario_id)
+            nombre_prop = propietario_existente.nombre if propietario_existente else "otro usuario"
+            origen = f"por {nombre_prop}"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Este archivo ya fue cargado previamente {origen} (\"{existente.nombre_archivo}\"). No puedes volver a cargarlo.",
+        )
+
     df = pd.read_excel(io.BytesIO(content), engine="openpyxl")
     df.columns = [normalizar(c) for c in df.columns]
 
@@ -227,14 +291,21 @@ def procesar_archivo_excel(
 
     df = aplicar_categorizacion(df, col_medio)
 
+    usuario = session.exec(select(Usuario).where(Usuario.email == usuario_email)).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    nombre_unico = f"{uuid.uuid4().hex}_{filename or 'archivo.xlsx'}"
+    ruta_archivo = os.path.join(UPLOAD_DIR, nombre_unico)
+    with open(ruta_archivo, "wb") as f:
+        f.write(content)
+
     nueva_carga = CargaExcel(
         nombre_archivo=filename or "archivo_sin_nombre.xlsx",
+        ruta_archivo=ruta_archivo,
+        hash_archivo=hash_valor,
         es_global=bool(es_global),
-        usuario_id=(
-            session.exec(
-                select(Usuario).where(Usuario.email == usuario_email)
-            ).first()
-        ).id,
+        usuario_id=usuario.id,
     )
 
     session.add(nueva_carga)
@@ -311,8 +382,22 @@ def procesar_archivo_excel(
     return df, meta, nueva_carga.id, registros_guardados
 
 
-def listar_documentos(session: Session, usuario_actual_id: int):
-    cargas = session.exec(select(CargaExcel).order_by(CargaExcel.fecha_carga.desc())).all()
+def obtener_excel_por_usuario(session: Session, usuario_actual: Usuario):
+    if usuario_actual.rol == "admin":
+        cargas = session.exec(
+            select(CargaExcel).order_by(CargaExcel.fecha_carga.desc())
+        ).all()
+    else:
+        cargas = session.exec(
+            select(CargaExcel)
+            .where(
+                or_(
+                    CargaExcel.es_global == True,
+                    CargaExcel.usuario_id == usuario_actual.id
+                )
+            )
+            .order_by(CargaExcel.fecha_carga.desc())
+        ).all()
 
     resultado = []
     for carga in cargas:
@@ -325,33 +410,40 @@ def listar_documentos(session: Session, usuario_actual_id: int):
         resultado.append(
             {
                 "id": carga.id,
-                "filename": carga.nombre_archivo,
-                "uploaded_by_id": carga.usuario_id,
-                "uploaded_by_name": propietario.nombre if propietario else "Desconocido",
-                "created_at": carga.fecha_carga.isoformat(),
-                "is_global": carga.es_global,
-                "is_owner": carga.usuario_id == usuario_actual_id,
-                "total_registros": total_registros,
+                "nombre_archivo": carga.nombre_archivo,
+                "fecha_carga": carga.fecha_carga,
+                "es_global": carga.es_global,
+                "usuario_id": carga.usuario_id,
+                "usuario_nombre": propietario.nombre if propietario else "Sistema",
+                "es_propietario": carga.usuario_id == usuario_actual.id,
+                "total_registros": total_registros
             }
         )
 
     return resultado
 
-def obtener_excel_por_usuario(db: Session, user):
-    # Si es admin, retorna todos los Excel
-    if user.rol == "admin":
-        return db.query(models.DocumentoExcel).all()
-    
-    # Si es usuario normal, retorna los cargados por él O por el admin
-    return db.query(models.DocumentoExcel).filter(
-        (models.DocumentoExcel.user_id == user.id) | 
-        (models.DocumentoExcel.usuario.has(rol="admin"))
-    ).all()
 
-def eliminar_excel(db: Session, excel_id: int):
-    excel = db.query(models.DocumentoExcel).filter(models.DocumentoExcel.id == excel_id).first()
-    if excel:
-        db.delete(excel)
-        db.commit()
-        return True
-    return False
+def eliminar_excel(session: Session, excel_id: int, usuario_actual: Usuario):
+    carga = session.get(CargaExcel, excel_id)
+    if not carga:
+        return False
+
+    if usuario_actual.rol != "admin" and carga.usuario_id != usuario_actual.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para eliminar este archivo."
+        )
+
+    if carga.ruta_archivo and os.path.exists(carga.ruta_archivo):
+        try:
+            os.remove(carga.ruta_archivo)
+        except OSError:
+            pass
+
+    datos = session.exec(select(DatoProcesal).where(DatoProcesal.carga_id == excel_id)).all()
+    for d in datos:
+        session.delete(d)
+
+    session.delete(carga)
+    session.commit()
+    return True

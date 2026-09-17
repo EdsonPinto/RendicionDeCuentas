@@ -15,13 +15,6 @@ class ListaMagistradosDTO(BaseModel):
     magistrados: List[str]
 
 
-MAGISTRADOS_OFICIALES_DEFECTO = [
-    "DR. MAURICIO JAVIER ROJAS",
-    "DRA. MARIA ELENA GOMEZ",
-    "DR. CARLOS ALBERTO PEREZ",
-]
-
-
 @router.get("/api/admin/usuarios", response_model=List[Usuario])
 def listar_usuarios(
     admin: Usuario = Depends(verificar_admin),
@@ -144,17 +137,12 @@ def listar_magistrados(
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
+    # El catálogo arranca vacío y se puebla únicamente con los nombres
+    # que aparecen en el Excel cargado (ver syncMagistradosCatalog en el frontend).
+    # No se siembra ningún magistrado de ejemplo por defecto.
     registros = session.exec(
         select(MagistradoOficial).order_by(MagistradoOficial.nombre)
     ).all()
-
-    if not registros:
-        for nombre in MAGISTRADOS_OFICIALES_DEFECTO:
-            session.add(MagistradoOficial(nombre=nombre))
-        session.commit()
-        registros = session.exec(
-            select(MagistradoOficial).order_by(MagistradoOficial.nombre)
-        ).all()
 
     return {"magistrados": [r.nombre for r in registros]}
 
@@ -166,13 +154,10 @@ def guardar_magistrados(
     session: Session = Depends(get_session),
 ):
     try:
-        # 1. Limpiar lista de duplicados y vacíos
         nombres = sorted({m.strip().upper() for m in dto.magistrados if m and m.strip()})
 
-        # 2. Borrar registros previos de forma atómica en SQL
         session.exec(delete(MagistradoOficial))
 
-        # 3. Insertar nuevos magistrados
         for nombre in nombres:
             session.add(MagistradoOficial(nombre=nombre))
 

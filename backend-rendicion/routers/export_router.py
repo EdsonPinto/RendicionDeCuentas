@@ -20,7 +20,7 @@ def exportar_excel(
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    df, meta_db = cargar_dataframe_desde_db(session, carga_id)
+    df, meta_db = cargar_dataframe_desde_db(session, carga_id, usuario_actual)
 
     if df is None or df.empty:
         raise HTTPException(

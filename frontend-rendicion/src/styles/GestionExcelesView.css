@@ -1,0 +1,186 @@
+.gestion-exceles-usuario {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.gestion-exceles-usuario h1 {
+  font-weight: 900;
+  font-size: 24px;
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.gestion-exceles-hint {
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.upload-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #fff;
+  border: 2px solid black;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.upload-form input[type="file"] {
+  flex: 1;
+  font-size: 13px;
+}
+
+.upload-message {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  margin-bottom: 20px;
+}
+
+.excel-section {
+  background: #fff;
+  border: 2px solid black;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.excel-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.excel-empty {
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+  padding: 15px;
+}
+
+.excel-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.excel-card {
+  padding: 12px;
+  border: 2px solid black;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.excel-card:hover {
+  background: #f9fafb;
+}
+
+.excel-card-selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.excel-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.excel-card-info strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.excel-card-info small {
+  font-size: 11px;
+  color: #666;
+}
+
+.excel-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.excel-card-check {
+  color: #3b82f6;
+}
+
+.excel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid black;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.excel-btn-primary {
+  background: #3b82f6;
+  color: white;
+  padding: 10px 16px;
+}
+
+.excel-btn-ghost {
+  background: #f3f4f6;
+}
+
+.excel-btn-danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+.excel-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.excel-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid black;
+  border-radius: 6px;
+  background: #f3f4f6;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.excel-mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.excel-mode-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
