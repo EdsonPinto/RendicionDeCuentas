@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Trash2, FileSpreadsheet, CheckCircle } from "lucide-react";
 
 export const AdminCrudView = ({
@@ -24,7 +24,7 @@ export const AdminCrudView = ({
   const [misExcels, setMisExcels] = useState([]);
   const [cargandoExcels, setCargandoExcels] = useState(false);
 
-  const fetchMisExcels = async () => {
+  const fetchMisExcels = useCallback(async () => {
     if (!token) return;
     try {
       setCargandoExcels(true);
@@ -40,11 +40,11 @@ export const AdminCrudView = ({
     } finally {
       setCargandoExcels(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchMisExcels();
-  }, [token]);
+  }, [fetchMisExcels]);
 
   const handleSelectExcel = async (file) => {
     try {
