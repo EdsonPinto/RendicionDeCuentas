@@ -1,3 +1,4 @@
+import unicodedata
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -5,7 +6,8 @@ from sqlmodel import Session, select, delete
 
 from auth import hash_password, obtener_usuario_actual, verificar_admin
 from database import get_session
-from models import MagistradoOficial
+# Importamos CargaExcel para poder borrar los archivos del usuario
+from models import MagistradoOficial, CargaExcel 
 from models import Usuario as UsuarioDB
 from schemas import Usuario, UsuarioCreateDTO, UsuarioUpdateDTO
 
@@ -13,6 +15,15 @@ router = APIRouter()
 
 class ListaMagistradosDTO(BaseModel):
     magistrados: List[str]
+
+
+def normalizar_texto(texto: str) -> str:
+    """Remueve tildes/acentos, convierte a mayúsculas y quita espacios extra."""
+    if not texto:
+        return ""
+    nfkd_form = unicodedata.normalize('NFKD', texto)
+    texto_sin_tildes = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+    return texto_sin_tildes.strip().upper()
 
 
 @router.get("/api/admin/usuarios", response_model=List[Usuario])
@@ -49,7 +60,7 @@ def crear_usuario(
         )
 
     nuevo_usuario = UsuarioDB(
-        nombre=dto.nombre.strip().upper(),
+        nombre=normalizar_texto(dto.nombre),
         email=dto.username.strip().lower(),
         password_hash=hash_password(dto.password),
         rol=dto.rol.strip().lower(),
@@ -83,7 +94,7 @@ def editar_usuario(
         )
 
     if dto.nombre is not None and dto.nombre.strip():
-        usuario.nombre = dto.nombre.strip().upper()
+        usuario.nombre = normalizar_texto(dto.nombre)
 
     if dto.rol is not None and dto.rol.strip():
         usuario.rol = dto.rol.strip().lower()
@@ -123,12 +134,16 @@ def eliminar_usuario(
             detail="Usuario no encontrado.",
         )
 
+    # 1. Eliminar todos los exceles asociados a este usuario primero
+    session.exec(delete(CargaExcel).where(CargaExcel.usuario_id == usuario.id))
+    
+    # 2. Ahora sí, eliminar el usuario de forma segura
     session.delete(usuario)
     session.commit()
 
     return {
         "status": "ok",
-        "mensaje": f"Usuario {target_username} eliminado exitosamente.",
+        "mensaje": f"Usuario {target_username} y sus archivos eliminados exitosamente.",
     }
 
 
@@ -137,9 +152,6 @@ def listar_magistrados(
     usuario_actual: Usuario = Depends(obtener_usuario_actual),
     session: Session = Depends(get_session),
 ):
-    # El catálogo arranca vacío y se puebla únicamente con los nombres
-    # que aparecen en el Excel cargado (ver syncMagistradosCatalog en el frontend).
-    # No se siembra ningún magistrado de ejemplo por defecto.
     registros = session.exec(
         select(MagistradoOficial).order_by(MagistradoOficial.nombre)
     ).all()
@@ -154,7 +166,8 @@ def guardar_magistrados(
     session: Session = Depends(get_session),
 ):
     try:
-        nombres = sorted({m.strip().upper() for m in dto.magistrados if m and m.strip()})
+        # Se aplica la normalización a cada magistrado para estandarizar el catálogo
+        nombres = sorted({normalizar_texto(m) for m in dto.magistrados if m and m.strip()})
 
         session.exec(delete(MagistradoOficial))
 

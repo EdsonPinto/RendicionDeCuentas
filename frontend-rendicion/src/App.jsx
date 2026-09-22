@@ -66,8 +66,6 @@ function App() {
   const [selectedProceso, setSelectedProceso] = useState(null);
   const [refreshExcelKey, setRefreshExcelKey] = useState(0);
 
-  // Excel activo del usuario: se comparte entre Gestión, Análisis,
-  // Comparativas, Cuello de Botella y Exportar. Se persiste en localStorage.
   const [selectedExcelId, setSelectedExcelId] = useState(() => {
     const saved = localStorage.getItem("selected_excel_id");
     return saved ? Number(saved) : null;
@@ -129,11 +127,17 @@ function App() {
     [dates.desde, dates.hasta, token, selectedExcelId, handleLogout],
   );
 
-  const { compMode, setCompMode, compFilters, setCompFilters, compData } =
-    useComparativa(API_URL, token, data, view, subViewMode, selectedExcelId, {
-      setLoading,
-      active: activeTab === "comparativa",
-    });
+  const {
+    compMode,
+    setCompMode,
+    compFilters,
+    setCompFilters,
+    compData,
+    loadingComparativa,
+  } = useComparativa(API_URL, token, data, view, subViewMode, selectedExcelId, {
+    setLoading,
+    active: activeTab === "comparativa",
+  });
 
   const syncedCatalogKeysRef = useRef(new Set());
   const inFlightCatalogKeysRef = useRef(new Set());
@@ -141,36 +145,46 @@ function App() {
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !token) return;
+
+    let isGlobal = false;
+    if (userProfile?.rol === "admin") {
+      isGlobal = window.confirm(
+        "¿Deseas subir este archivo como INSTITUCIONAL (visible para todos)?\n\n- [Aceptar] = Institucional\n- [Cancelar] = Privado",
+      );
+    }
+
     setLoading(true);
     setError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("es_global", "true");
+      fd.append("es_global", isGlobal.toString());
 
       const res = await fetch(`${API_URL}/api/excel/subir-archivo`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || `Error al subir: ${res.status}`);
       }
 
-      await fetchStats(dates.desde, dates.hasta, token, selectedExcelId);
+      alert(
+        "Archivo cargado exitosamente. Ahora selecciónalo en el panel para trabajar con él.",
+      );
+
       setRefreshExcelKey((prev) => prev + 1);
-      setActiveTab("gestion");
+      setActiveTab(userProfile?.rol === "admin" ? "admin_crud" : "mis_excels");
     } catch (err) {
-      setError(err.message || "Error al subir el archivo.");
+      alert(err.message || "Error al subir el archivo.");
     } finally {
       setLoading(false);
+      e.target.value = null;
     }
   };
 
-  // Se comparte entre AdminCrudView y GestionExcelesView: al hacer clic
-  // sobre cualquier tarjeta de Excel (propio o institucional), este se
-  // vuelve el "Excel activo" para todos los módulos de análisis.
   const handleExcelSelected = useCallback(
     (selectedData) => {
       if (selectedData) {
@@ -226,6 +240,42 @@ function App() {
     }
   };
 
+  // Función para exportar los datos de una entidad específica en Análisis Estratégico
+  const handleExportEntidadExcel = async (nombreEntidad) => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        ponente: view,
+        entidad: nombreEntidad,
+      });
+      if (selectedExcelId) params.set("carga_id", selectedExcelId);
+      if (subViewMode) params.set("sub_modo", subViewMode);
+
+      const res = await fetch(
+        `${API_URL}/api/exportar-excel?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) throw new Error("Error al generar el Excel de la entidad.");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Reporte_${nombreEntidad.replace(/\s+/g, "_")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || "No se pudo descargar el Excel.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchUserProfile(token, {
@@ -271,8 +321,24 @@ function App() {
 
   const listaMagistradosUnicos = useMemo(() => {
     if (!data?.lista_ponentes) return [];
-    return derivarMagistrados(data.lista_ponentes);
-  }, [data]);
+    const todosLosMagistrados = derivarMagistrados(data.lista_ponentes);
+
+    if (userProfile && userProfile.rol !== "admin") {
+      const normalizar = (str) =>
+        str
+          ? str
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .trim()
+              .toUpperCase()
+          : "";
+
+      const miNombre = normalizar(userProfile.nombre);
+      return todosLosMagistrados.filter((mag) => normalizar(mag) === miNombre);
+    }
+
+    return todosLosMagistrados;
+  }, [data, userProfile]);
 
   const resolverDatosMagistrado = useCallback(
     (nombreMag, subModo) => {
@@ -370,7 +436,7 @@ function App() {
     activeTab === "comparativa" && compMode === "periodo";
   const isMagistradoCompActive =
     activeTab === "comparativa" && compMode === "magistrado";
-  const isCuelloBotellaActive = activeTab === "cuello_botella";
+  const isCuelloBotellaActive = false;
 
   return (
     <div className="app-container">
@@ -419,7 +485,25 @@ function App() {
               <Download size={16} />
               <span>EXCEL</span>
             </button>
-            <label className="btn-action btn-upload-label" title="Subir Excel">
+
+            <button
+              onClick={() =>
+                setActiveTab(
+                  userProfile?.rol === "admin" ? "admin_crud" : "mis_excels",
+                )
+              }
+              className="btn-action btn-upload-label"
+              title="Ir al panel de selección"
+            >
+              <Database size={16} />
+              <span>ARCHIVOS</span>
+            </button>
+
+            <label
+              className="btn-action btn-upload-label"
+              title="Subir nuevo Excel"
+              style={{ margin: 0, cursor: "pointer" }}
+            >
               <FileUp size={16} />
               <span>CARGAR</span>
               <input
@@ -429,6 +513,7 @@ function App() {
                 hidden
               />
             </label>
+
             <button
               onClick={handleLogout}
               className="btn-action btn-logout"
@@ -524,6 +609,7 @@ function App() {
             setCompFilters={setCompFilters}
             listaMagistradosUnicos={listaMagistradosUnicos}
             compData={compData}
+            loadingComparativa={loadingComparativa}
             cur={cur}
             setSelectedProceso={setSelectedProceso}
           />
@@ -532,7 +618,12 @@ function App() {
         {cur && activeTab === "gestion" && <GestionView cur={cur} />}
 
         {activeTab === "cuello_botella" && (
-          <CuelloBotellaView token={token} cargaId={selectedExcelId} />
+          <CuelloBotellaView
+            token={token}
+            cargaId={selectedExcelId}
+            ponente={view}
+            subViewMode={subViewMode}
+          />
         )}
 
         {cur && activeTab === "analisis" && (
@@ -548,11 +639,13 @@ function App() {
             filteredVigentes={filteredVigentes}
             limitVigentes={limitVigentes}
             setSelectedProceso={setSelectedProceso}
+            onExportEntidadExcel={handleExportEntidadExcel}
           />
         )}
 
         {activeTab === "mis_excels" && (
           <GestionExcelesView
+            key={refreshExcelKey}
             token={token}
             onLogout={handleLogout}
             selectedExcelId={selectedExcelId}
@@ -570,7 +663,7 @@ function App() {
               <Database size={100} color="#cbd5e1" />
               <h2>Esperando Base de Datos</h2>
               <p style={{ color: "#64748b", marginTop: "10px" }}>
-                Carga un archivo Excel desde el botón "CARGAR" para activar el
+                Selecciona un archivo Excel desde el panel para activar el
                 análisis procesal
               </p>
             </div>

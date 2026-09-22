@@ -1,5 +1,5 @@
 import React from "react";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
 
 export const AnalisisView = ({
   filterSinSalidaOnly,
@@ -13,6 +13,7 @@ export const AnalisisView = ({
   filteredVigentes,
   limitVigentes,
   setSelectedProceso,
+  onExportEntidadExcel, // <-- Nueva prop para manejar la descarga por entidad
 }) => (
   <div className="analysis-layout">
     {filterSinSalidaOnly && (
@@ -156,7 +157,8 @@ export const AnalisisView = ({
           }}
         >
           <span style={{ fontWeight: "900" }}>
-            TOP 15 ENTIDADES DEMANDADAS ({filteredEntidades.length})
+            TOP 15 ENTIDADES DEMANDADAS ({filteredEntidades.length}) - Haz clic
+            para descargar
           </span>
           <input
             type="text"
@@ -185,7 +187,14 @@ export const AnalisisView = ({
             </thead>
             <tbody>
               {filteredEntidades.map((e, i) => (
-                <tr key={i} style={{ color: "#000000" }}>
+                <tr
+                  key={i}
+                  onClick={() =>
+                    onExportEntidadExcel && onExportEntidadExcel(e.nombre)
+                  }
+                  title={`Haz clic para descargar el Excel completo de ${e.nombre} (${e.cantidad} registros)`}
+                  style={{ cursor: "pointer", color: "#000000" }}
+                >
                   <td
                     style={{
                       fontWeight: "800",
@@ -201,9 +210,18 @@ export const AnalisisView = ({
                       fontWeight: "900",
                       fontSize: "1rem",
                       color: "#000000",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
                     }}
                   >
-                    {e.cantidad}
+                    <span>{e.cantidad}</span>
+                    <Download
+                      size={14}
+                      color="#2563eb"
+                      title="Descargar Excel"
+                    />
                   </td>
                 </tr>
               ))}
@@ -212,7 +230,7 @@ export const AnalisisView = ({
         </div>
       </div>
 
-      {/* TABLA PROCESOS VIGENTES (CORREGIDA) */}
+      {/* TABLA PROCESOS VIGENTES */}
       <div
         className="card-tabla"
         style={{

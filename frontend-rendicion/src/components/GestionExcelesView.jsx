@@ -1,12 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  FileUp,
-  Download,
-  Loader2,
-  Building2,
-  User,
-  CheckCircle2,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Download, Building2, User, CheckCircle2 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -17,11 +10,9 @@ export const GestionExcelesView = ({
   onExcelSelected,
 }) => {
   const [files, setFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
 
-  const fetchFiles = useCallback(async () => {
+  const fetchFiles = async () => {
+    if (!token) return;
     try {
       const response = await fetch(`${API_URL}/api/excel/`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -37,56 +28,12 @@ export const GestionExcelesView = ({
     } catch (error) {
       console.error("Error al cargar la lista de archivos:", error);
     }
-  }, [token, onLogout]);
+  };
 
   useEffect(() => {
     fetchFiles();
-  }, [fetchFiles]);
-
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!selectedFile) return;
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("es_global", "false");
-
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const response = await fetch(`${API_URL}/api/excel/subir-archivo`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const resultado = await response.json();
-        setMessage("Archivo cargado exitosamente. Mostrando tus datos ahora.");
-        setSelectedFile(null);
-        fetchFiles();
-        // Activa automáticamente el archivo recién subido para este usuario,
-        // así los módulos de análisis se actualizan solos con sus datos.
-        onExcelSelected?.(resultado);
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        if (response.status === 409) {
-          setMessage(
-            errData.detail ||
-              "Este archivo ya fue cargado anteriormente en el sistema.",
-          );
-        } else {
-          setMessage(errData.detail || "Error al subir el archivo.");
-        }
-      }
-    } catch (err) {
-      console.error("Error al subir el archivo:", err);
-      setMessage("Error de conexión con el servidor.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleDownload = async (fileId, nombreArchivo) => {
     try {
@@ -153,8 +100,6 @@ export const GestionExcelesView = ({
   const archivosInstitucionales = files.filter((f) => f.es_global);
   const misArchivos = files.filter((f) => !f.es_global && f.es_propietario);
 
-  // Determina si la vista activa hoy es la institucional o la personal,
-  // para resaltar el botón correspondiente en el selector rápido.
   const modoActivo = (() => {
     if (!selectedExcelId) return null;
     if (archivosInstitucionales.some((f) => f.id === selectedExcelId))
@@ -218,7 +163,7 @@ export const GestionExcelesView = ({
 
   return (
     <div className="gestion-exceles-usuario">
-      <h1>Gestión de Exceles</h1>
+      <h1>Selección de Excel</h1>
       <p className="gestion-exceles-hint">
         Toca un archivo para usarlo como fuente de datos en Gestión Procesal,
         Análisis Estratégico, Comparativas y Cuello de Botella.
@@ -243,28 +188,7 @@ export const GestionExcelesView = ({
         </div>
       )}
 
-      <form onSubmit={handleUpload} className="upload-form">
-        <input
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={(e) => setSelectedFile(e.target.files[0])}
-        />
-        <button
-          type="submit"
-          disabled={loading || !selectedFile}
-          className="excel-btn excel-btn-primary"
-        >
-          {loading ? (
-            <Loader2 className="spinner" size={16} />
-          ) : (
-            <FileUp size={16} />
-          )}
-          {loading ? "Subiendo..." : "Subir mi archivo"}
-        </button>
-      </form>
-      {message && <p className="upload-message">{message}</p>}
-
-      <section className="excel-section">
+      <section className="excel-section" style={{ marginTop: "20px" }}>
         <h2>
           <Building2 size={18} /> Exceles institucionales
         </h2>

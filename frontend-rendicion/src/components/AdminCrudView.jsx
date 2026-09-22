@@ -24,6 +24,16 @@ export const AdminCrudView = ({
   const [misExcels, setMisExcels] = useState([]);
   const [cargandoExcels, setCargandoExcels] = useState(false);
 
+  // Helper para eliminar tildes, espacios extra y pasar a mayúsculas
+  const normalizarTexto = (str) => {
+    if (!str) return "";
+    return str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toUpperCase();
+  };
+
   const fetchMisExcels = useCallback(async () => {
     if (!token) return;
     try {
@@ -98,8 +108,9 @@ export const AdminCrudView = ({
     }
   };
 
+  // Mapeo normalizado sin tildes para búsqueda de vinculación exacta
   const usuariosNombresVinculados = new Set(
-    usuariosList.map((u) => u.nombre.trim().toUpperCase()),
+    usuariosList.map((u) => normalizarTexto(u.nombre)),
   );
 
   return (
@@ -357,7 +368,7 @@ export const AdminCrudView = ({
           >
             {magistradosList.map((mag, idx) => {
               const yaVinculado = usuariosNombresVinculados.has(
-                mag.trim().toUpperCase(),
+                normalizarTexto(mag),
               );
 
               return (
